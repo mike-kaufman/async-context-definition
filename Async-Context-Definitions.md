@@ -19,21 +19,106 @@ questions about a Node application:
 of the application + the code sample we are going to use.
 
 # Terminology
-In this section we introduce the core concepts that define asynchronous calls 
-and the relations between them in a manner that is independent of the underlying 
-implementation details.
+A fundamental challenge for asynchronous execution tracking is that, in the 
+Node.js model, asynchronous relationships are defined at both different layers 
+of the runtime as well as by through implicit conventions. Thus, our 
+definitions and mechanisims for tracking asynchronous execution rely on:
+ 1. A notion of `client` code which sees an _asynchnonous execution_ based on 
+ a series of executed JavaScript functions and fundamental relationships 
+ between them.
+ 2. A notion of `runtime` code, which can be native C++, JavaScript in Node 
+ core, or even other user code that is surfacing an asynchronous API to the 
+ `client`.
+ 3. A set of explicit tagging API's that will notify us of which API's are 
+ involved in these boundaries and which relations they affect.
 
-## Informal Definition of Asynchronous Execution
-Informally we consider any function which is stored in a collection to be 
-invoked, later when some condition is satisfied or event has transpired, to be 
-part of an `asynchronous execution`. This definition encompasses functions stored in 
-the UV event loop, the Node.js timer lists, event listeners, and even functions 
-stored in user defined pools.
+Informally, our definitions of asynchronous executions are based on three 
+binary relations over the executions of JavaScript functions:
+ - **link** -- when the execution one function, _f_, stores a second 
+ function, _g_, into a storage location (native, Node.js core, or user defined) 
+ for later execution we say _f_ `links` _g_. 
+ - **causal** -- when the execution of a function, _f_, is the `client` code 
+ that is locaically responsible (according to the `runtime` API) for causing 
+ the execution of a previously **linked** _g_  we say _f_ `causes` _g_.
 
-## Indexed Invocations
+As each of these events is defined with respect to an executing parent function 
+we also want to have a notion of ordering on them. Thus, we want to timestamp 
+the start/end of each asynchronous execution and each `link` or `causal` event.
+
+We define the following module code that provides the needed explicit marking 
+of API's that are exposing asynchronous behavior from a `runtime` component to 
+`client` code and which enable the tracking of the core asynchronous execution 
+chain concepts.
+```
+let globalCtxCtr = 0;
+generateFreshContext() {
+  return ++globalTimeCtr;
+}
+
+let globalTimeCtr = 0;
+generateNextTime() {
+  return ++globalTimeCtr;
+}
+
+let currentExecutingContext = undefined;
+
+contextify(f, args) {
+  const functionCtx = generateFreshContext();
+  return {function: f, argv: args, ctx: functionCtx};
+}
+
+link(ctxf) {
+  emit("link", currentExecutingContext, ctxf.ctx, generateNextTime());
+}
+
+cause(ctxf) {
+  emit("cause", currentExecutingContext, ctxf.ctx, generateNextTime());
+}
+
+externalCause(ctxf, data) {
+    emit("externalCause", ctxf.ctx, generateNextTime(), data);
+}
+
+execute(ctxf) {
+  currentExecutingContext = ctxf.ctx;
+  emit("executeBegin", ctxf.ctx, generateNextTime());
+
+  try {
+    ctxf.execute(ctxf.argv); //as needed for functions or promises
+  }
+  finally {
+    emit("executeEnd", ctxf.ctx, generateNextTime());
+    currentExecutingContext = undefined;
+  }
+
+  return res;
+}
+```
+Using this code a `runtime` will provide an asynchronous API abstraction by 
+`contextifying` the functions passed to API's that it wishes to pool for later 
+asynchronous execution. At each later phase the `link`, `cause`, optional 
+`externalCause`, and `execute` functions will need to be invoked to drive the 
+asynchronous execution and update/write the appropriate context information.
+
+Thus, an asynchronous execution is implicitly defined by the placement of 
+these operations and, as seen in the code, produces an asynchronous event 
+trace. A trace is well-formed if it preserves the following properties:
+ 1. For each link/cause entry `currentExecutingContext` < `ctxf.ctx`
+ 2. For each `ctxf.ctx` the timestamps (if present) for "link" < "cause"  
+ < "externalCause" < "executeBegin" < "executeEnd"
+ 2. bbbb
+
+## Indexed Invocations and Stores
 A single function object _f_ may be invoked multiple times during the execution 
 of an application (in both synchronous and asynchronous contexts). To allow us 
-to differentiate these executions we introduce a _global_ counter that is 
+to differentiate these executions we introduce tagging function that assigns each 
+function invoked though it with a unique and monotonically increasing number: 
+```
+function invokeTag(f, ...args) {
+  f.
+}
+```
+
 incremented at each function invocation _and_ the dynamic invocation is indexed (tagged) 
 with the counter. Thus for the code:
 ```
@@ -47,7 +132,10 @@ f();
 We would say that _dynamically_ the `indexed invocation` _f<sup>1</sup>_ prints 
 "hi", _g<sup>2</sup>_ prints "middle", and invocation _f<sup>3</sup>_ prints "bye".
 
-## **Invoked Before**
+Similarly, a single function may be stored in multiple locations for later asynchronous 
+execution. To allow us to 
+
+## Invoked Before
 Given two indexed invocations _f<sup>k</sup>_ and _g<sup>l</sup>_ we defined the 
 `invoked before` relation as:
 _f<sup>k</sup>_ `invoked before` _g<sup>l</sup>_ _iff_ k < l.
@@ -57,7 +145,7 @@ callbacks that are invoked during an applications execution. In our example we
 have _f<sup>1</sup>_ `invoked before` _g<sup>2</sup>_ and _f<sup>1</sup>_ 
 `invoked before` _f<sup>3</sup>_ but **NOT** _f<sup>3</sup>_ `invoked before` _g<sup>2</sup>_.
 
-## **Asynchronous Linking**
+## Asynchronous Linking
 A key concept in our definition of asynchronous execution is the storing of a 
 function into some structure that defers the execution until some later point. 
 Thus, for a function to actually be invoked as part of an `asynchronous execution` 
@@ -67,7 +155,8 @@ which may/may not occour, e.g., promises that are never resolved/rejected or
 event listeners where the underlying event is never emitted. Thus, this linking 
 **does NOT** always imply that the function will actually be executed in the future. 
 
-As 
+To account for this we intoduce a second layer of indexing on functions as they ar
+dynamically added to a asynchronous task lists. 
 
 **TODO:** later we want an example of a linked but not caused function...
 
