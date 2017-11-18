@@ -40,6 +40,8 @@ binary relations over the executions of JavaScript functions:
  - **causal** -- when the execution of a function, _f_, is the `client` code 
  that is locaically responsible (according to the `runtime` API) for causing 
  the execution of a previously **linked** _g_  we say _f_ `causes` _g_.
+ - **happens before** -- whea function, _f_, is executed before a second 
+ function, _g_, we say _f_ `happens before` _g_.
 
 As each of these events is defined with respect to an executing parent function 
 we also want to have a notion of ordering on them. Thus, we want to timestamp 
@@ -62,9 +64,9 @@ generateNextTime() {
 
 let currentExecutingContext = undefined;
 
-contextify(f, args) {
+contextify(f, args, label) {
   const functionCtx = generateFreshContext();
-  return {function: f, argv: args, ctx: functionCtx};
+  return {label: label, function: f, argv: args, ctx: functionCtx};
 }
 
 link(ctxf) {
@@ -100,81 +102,29 @@ asynchronous execution. At each later phase the `link`, `cause`, optional
 `externalCause`, and `execute` functions will need to be invoked to drive the 
 asynchronous execution and update/write the appropriate context information.
 
-Thus, an asynchronous execution is implicitly defined by the placement of 
+# Properties of Asynchronous Event Traces
+An asynchronous execution is implicitly defined by the placement of 
 these operations and, as seen in the code, produces an asynchronous event 
 trace. A trace is well-formed if it preserves the following properties:
  1. For each link/cause entry `currentExecutingContext` < `ctxf.ctx`
  2. For each `ctxf.ctx` the timestamps (if present) for "link" < "cause"  
  < "externalCause" < "executeBegin" < "executeEnd"
- 2. bbbb
+ 3. others?
 
-## Indexed Invocations and Stores
-A single function object _f_ may be invoked multiple times during the execution 
-of an application (in both synchronous and asynchronous contexts). To allow us 
-to differentiate these executions we introduce tagging function that assigns each 
-function invoked though it with a unique and monotonically increasing number: 
-```
-function invokeTag(f, ...args) {
-  f.
-}
-```
+# Asynchronous Annotations for Core Node APIs
+To illustrate how the asyncronous annotation code can be used to convert a 
+`runtime` API into one that tracks asynchronous events for client code we look 
+at applying them to a sample of the `fs` API.
 
-incremented at each function invocation _and_ the dynamic invocation is indexed (tagged) 
-with the counter. Thus for the code:
-```
-let words = ["hi", "bye"];
-function f = function() { console.log(words.shift()); }
-function g = function() { console.log("middle"); }
-f();
-g();
-f();
-```
-We would say that _dynamically_ the `indexed invocation` _f<sup>1</sup>_ prints 
-"hi", _g<sup>2</sup>_ prints "middle", and invocation _f<sup>3</sup>_ prints "bye".
+**TODO:** that
 
-Similarly, a single function may be stored in multiple locations for later asynchronous 
-execution. To allow us to 
-
-## Invoked Before
-Given two indexed invocations _f<sup>k</sup>_ and _g<sup>l</sup>_ we defined the 
-`invoked before` relation as:
-_f<sup>k</sup>_ `invoked before` _g<sup>l</sup>_ _iff_ k < l.
-
-This order allows us to provide a simple global total order on any asynchronous 
-callbacks that are invoked during an applications execution. In our example we 
-have _f<sup>1</sup>_ `invoked before` _g<sup>2</sup>_ and _f<sup>1</sup>_ 
-`invoked before` _f<sup>3</sup>_ but **NOT** _f<sup>3</sup>_ `invoked before` _g<sup>2</sup>_.
-
-## Asynchronous Linking
-A key concept in our definition of asynchronous execution is the storing of a 
-function into some structure that defers the execution until some later point. 
-Thus, for a function to actually be invoked as part of an `asynchronous execution` 
-it must first be `linked` into an asynchronous callback storage location. The 
-execution of functions from a location may be conditional on some other event 
-which may/may not occour, e.g., promises that are never resolved/rejected or 
-event listeners where the underlying event is never emitted. Thus, this linking 
-**does NOT** always imply that the function will actually be executed in the future. 
-
-To account for this we intoduce a second layer of indexing on functions as they ar
-dynamically added to a asynchronous task lists. 
-
-**TODO:** later we want an example of a linked but not caused function...
-
-
-
-###  **Async Callback Invocation** 
+Promises can be augmented as well...
+ 
 
 
 
 ###  **Async Call Tree**
 A tree that represents the asynchronous execution flow in a Node.js program.
-
-###  **Async Operation**  
-A node in the tree.  Each node represents an a specific asynchronous invocation of some function f.  
-    *TODO* 
-    - example w/ one function invoked two times
-    ```
-    ```
 
 ## Asynchronous Operation Metadata
 Each `AsyncOperation` node will be in  exactly one of the following states at any given time.  An `AsyncOperation` node can be in each state exactly once.   
@@ -184,22 +134,6 @@ Each `AsyncOperation` node will be in  exactly one of the following states at an
   3. Executing - currently executing in the event loop.
   4. ChildrenPending - execution is finished, and there are one more more `AsyncOperation` child nodes not in the `Retired` state.
   5. Retired  - execution is finished, and there are no children in the `ChildrenPending` state.
-
-### **Linking Context** 
-A directed edge between two `Async Operation` nodes that indicates the parent node's execution has "queued" the child node for execution.
-  *TODO* 
-      - example 
-
-### **Causal Context** 
-A directed edge between two `Async Operation` nodes that indicates the parent node's execution has "enabled" the child node for execution.
-  *TODO* 
-      - example
-
-### **Async Execution Chain** 
-A path through the tree.
-
-### **Async Event Stream**
-Stream of events that indicate state changes of the Async Call Tree.  State changes can include state changes on `Async Operation` nodes and new `Linking Context` and `Causal Context` edges being defined.  Stream events can be interpreted to construct a "live tree". 
 
 ## Use Cases
 
