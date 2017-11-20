@@ -2,9 +2,9 @@
 Node.js uses an event-driven non-blocking I/O model of execution instead of 
 multi-threading. This model greatly simplifies reasoning about many aspects of 
 a programs execution but requires the use of _callback_ based code to ensure 
-applications remain responsive. Thus, understanding a the behvior of an 
+applications remain responsive. Thus, understanding a the behavior of an 
 application may require understanding the execution of several blocks of code 
-and how their executions are related via asychronous callback operations.
+and how their executions are related via asynchronous callback operations.
 
 This document provides a specification for asynchronous execution in Node.js 
 and a model for reasoning about the relationships between asynchronous calls 
@@ -21,8 +21,8 @@ of the application + the code sample we are going to use.
 A fundamental challenge for asynchronous execution tracking is that, in the 
 Node.js model, asynchronous relationships are defined both at different layers 
 of the runtime as well as by through implicit conventions. Thus, our 
-definitions and mechanisims for tracking asynchronous execution rely on:
- 1. A notion of `client` code which sees an _asynchnonous execution_ based on 
+definitions and mechanisms for tracking asynchronous execution rely on:
+ 1. A notion of `client` code which sees an _asynchronous execution_ based on 
  a series of executed JavaScript functions from different asynchronous 
  contexts and fundamental relationships between them.
  2. A notion of `runtime` code, which can be native C++, JavaScript in Node 
@@ -44,15 +44,15 @@ different) client asynchronous contexts added them.
 
 # Terminology
 Our definitions of asynchronous executions are based on three 
-binary relations over the executions of logically ascynchrounous JavaScript 
+binary relations over the executions of logically asynchronous JavaScript 
 functions:
  - **link** -- when the execution one function, _f_, stores a second 
  function, _g_, into a storage location (native, Node.js core, or user defined) 
- for later ascynhronous execution we say _f_ `links` _g_. 
+ for later asynchronous execution we say _f_ `links` _g_. 
  - **causal** -- when the execution of a function, _f_, is the `client` code 
- that is locaically responsible (according to the `runtime` API) for causing 
+ that is locally responsible (according to the `runtime` API) for causing 
  the execution of a previously **linked** _g_  we say _f_ `causes` _g_.
- - **happens before** -- when a function, _f_, is asynchrnously executed 
+ - **happens before** -- when a function, _f_, is asynchronously executed 
  before a second function, _g_, we say _f_ `happens before` _g_.
 
 As each of these events is defined with respect to an executing parent function 
@@ -76,13 +76,9 @@ generateNextTime() {
 
 let currentExecutingContext = undefined;
 
-contextify(f, args, label, aspromise) {
+contextify(f) {
   const functionCtx = generateFreshContext();
-  return { label: label, 
-           function: f, 
-           argv: args, 
-           ctx: functionCtx, 
-           asPromise: aspromise };
+  return { function: f, ctx: functionCtx };
 }
 
 link(ctxf) {
@@ -98,7 +94,7 @@ execute(ctxf) {
   emit("executeBegin", ctxf.ctx, generateNextTime());
 
   try {
-    ctxf.apply(null, ctxf.argv);
+    ctxf.call(null);
   }
   finally {
     emit("executeEnd", ctxf.ctx, generateNextTime());
@@ -114,48 +110,120 @@ asynchronous execution. At each later phase the `link`, `cause`, optional
 `externalCause`, and `execute` functions will need to be invoked to drive the 
 asynchronous execution and update/write the appropriate context information.
 
-An asynchronous execution is implicitly defined by the placement of 
-these operations and, as seen in the code, produces an asynchronous event 
-trace. A trace is well-formed if it preserves the following properties:
- 1. For each link/cause entry `currentExecutingContext` < `ctxf.ctx`
- 2. For each `ctxf.ctx` the timestamps (if present) for "link" < "cause"  
- < "externalCause" (optional) < "executeBegin" < "fail" (optional) < "executeEnd"
-
-Using the core definitions we can define the following states of an 
-asynchronous function or execution:
- * `Queued asynchronous function` is one where the "link" event has been 
- emitted /\ the "cause" event has not been emited.
-
- * `Ready asynchronous function` is one where the "cause" event has been 
- emited /\ the "executeBegin" event has not been emited.
-
- * `Executing asynchronous function` is one where the "executeBegin" event 
- has been emitted /\ the "executeEnd" event has not been emited.
-
- * `Completed asynchronous function` is one where the "executeEnd" event 
- has been emited.
-
-Each `AsyncOperation` node will be in  exactly one of the following states at any given time.  An `AsyncOperation` node can be in each state exactly once.
-**TODO** say more here
-
-#  Async Call (Sub)Tree
-A tree that represents the asynchronous execution flow in a Node.js program.
-
- * `Active asynchronous execution` is **TODO**
-
- * `Retired asynchronous execution` is **TODO**
-
 # Asynchronous Annotations Examples
-To illustrate how the asyncronous annotation code can be used to convert a 
+To illustrate how the asynchronous annotation code can be used to convert a 
 `runtime` API into one that tracks asynchronous events for client code we look 
 at applying them to a sample of a callback based API as well as 
 the promise API.
 
 ## Callback API
-**TODO:**
+For this example we start with a simple asynchronous API that defines 
+two method for registering callbacks:
+```
+let worklist = [];
+setInterval(() => {
+  const wl = worklist;
+  worklist = [];
+  wl.forEach((entry) => {
+    execute(entry.task);
+    if(entry.isRepeat) {
+      workist.push(entry);
+    }
+  });
+}, 500);
+
+//Invoke the callback ONCE asynchronously on later turn of event loop
+function callbackOnce(f) {
+  const cf = contextify(f);
+  link(cf);
+  cause(cf);
+
+  worklist.push({task: cf, isRepeat: false});
+}
+
+//Invoke the callback REPEATEDLY asynchronously on later turns of event loop
+function callbackRepeating(f) {
+  const cf = contextify(f);
+  link(cf);
+  cause(cf);
+
+  callbackOnce({task: cf, isRepeat: true});
+}
+```
+This example shows how the use of the core asynchronous module code delineates 
+the points at which logical linking and causal context are captured or 
+propagated. If we invoke this API as follows (when the currentContext is 0):
+```
+callbackRepeating(() => console.log("Hello Repeating"));
+
+let doit = true;
+callbackOnce(() => {
+  console.log("Hello Once") 
+  if(doit) {
+    doit = false;
+    callbackOnce(() => console.log("Did it"));
+  }
+});
+```
+We will see the asynchronous trace:
+```
+  {event: "link", currentExecutingContext: 0, ctx: 1, time: 1}
+  {event: "cause", currentExecutingContext: 0, ctx: 1, time: 2}
+  {event: "link", currentExecutingContext: 0, ctx: 2, time: 3}
+  {event: "cause", currentExecutingContext: 0, ctx: 2, time: 4}
+  {event: "executeBegin", ctx: 2, time: 5}
+  //Prints "Hello Repeating"
+  {event: "executeEnd", ctx: 2, time: 6}
+  {event: "executeBegin", ctx: 1, time: 7}
+  //Prints "Hello Once"
+  {event: "link", currentExecutingContext: 1, ctx: 3, time: 8}
+  {event: "cause", currentExecutingContext: 1, ctx: 3, time: 9}
+  {event: "executeEnd", ctx: 1, time: 10}
+  {event: "executeBegin", ctx: 3, time: 11}
+  //Prints "Did it"
+  {event: "executeEnd", ctx: 3, time: 12}
+  {event: "executeBegin", ctx: 1, time: 13}
+  //Prints "Hello Repeating"
+  {event: "executeEnd", ctx: 1, time: 14}
+  ...
+```
 
 ## Promise API
-**TODO:**
+**TODO:** do a promise thing
+
+These two examples show how the the context relations from 
+[DLS17](https://www.microsoft.com/en-us/research/wp-content/uploads/2017/08/NodeAsyncContext.pdf) can be 
+lifted into the Node ecosystem without the use of the _priority promise_ 
+construct (although at the loss of unified scheduling and priority).
+
+# Asynchronous Function Execution
+Using the core definitions we can define the following states of an 
+asynchronous function:
+ * `Queued asynchronous function` is one where the "link" event has been 
+ emitted /\ any "cause" event has not been emitted.
+ * `Ready asynchronous function` is one where a "cause" event has been 
+ emited /\ is not followed by any "executeBegin" event.
+
+# Asynchronous (Sub)Tree Execution
+Each asynchronous execution in a trace can be viewed as a node in an 
+`asynchronous execution (sub)tree` with the children defined _either_ 
+by the link or cause relations. 
+  * A given function context node, _c<sub>1</sub>_, is a `link-parent` for a 
+  second context node, _c<sub>2</sub>_, if the `asynchronous event 
+  trace` contains the entries
+  _{event: "executeBegin", ctx: c<sub>1</sub>, time: t}_ and 
+  _{event: "link", ctx: c<sub>2</sub>, time: t'}_ where t < t' and, 
+  if the trace contains an event 
+  _{event: "executeBegin", ctx: c<sub>1</sub>, time: t''}_, then t' < t''.
+  * A given function context node, _c<sub>1</sub>_, is a `causal-parent` for a 
+  second context node, _c<sub>2</sub>_, if the `asynchronous event 
+  trace` contains the entries
+  _{event: "executeBegin", ctx: c<sub>1</sub>, time: t}_ and 
+  _{event: "cause", ctx: c<sub>2</sub>, time: t'}_ where t < t' and, 
+  if the trace contains an event 
+  _{event: "executeBegin", ctx: c<sub>1</sub>, time: t''}_, then t' < t''.
+
+**TODO** use these definitions to see trees for trace examples...
 
 # Enriched Terminology
 The definitions in the "Terminology" section provide basic asynchronous 
@@ -173,6 +241,10 @@ externalCause(ctxf, data) {
     emit("externalCause", ctxf.ctx, generateNextTime(), data);
 }
 
+completed(ctxf) {
+    emit("completed", ctxf.ctx, generateNextTime());
+}
+
 failed(ctxf) {
     emit("fail", ctxf.ctx, generateNextTime());
 }
@@ -182,6 +254,8 @@ rejected(ctxf) {
 }
 ```
 
+A `completed asynchronous execution` is one in which **TODO**
+
 A `canceled asynchronous execution` is one in which **TODO**
 
 A `failed asynchronous execution` is one in which **TODO**
@@ -189,6 +263,14 @@ A `failed asynchronous execution` is one in which **TODO**
 A `rejected asynchronous execution` is one in which **TODO**
 
 A `rejected and unhandled asynchronous execution` is one in which **TODO**
+
+
+Using the these definitions we can define the following states of an 
+asynchronous execution:
+ * A (sub)tree is in `active asynchronous execution` when there exists a child 
+ node, link or causal, that has not completed.
+ * A (sub)tree has `retired asynchronous execution` when all child nodes, 
+ link of causal, are in the completed state.
 
 # Asynchronous Operation Metadata
 
@@ -198,7 +280,7 @@ A `rejected and unhandled asynchronous execution` is one in which **TODO**
 Post-mortem use cases occur after program execution has ended.  These include reconstruction of async context state at some point in time, or understanding timing details.  
 
   1.  Understand execution & timing details of an async call path 
-  2.  Understand parent/child relationshipo in async call paths
+  2.  Understand parent/child relationship in async call paths
   3.  Reconstruct async call tree to some point in time given an event stream 
 
 ## Online Use Cases
