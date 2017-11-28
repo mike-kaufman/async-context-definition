@@ -1,8 +1,12 @@
 
+# Async Context Definitions
+
+## Overview
+
 Node.js uses an event-driven non-blocking I/O model of execution instead of 
 multi-threading. This model greatly simplifies reasoning about many aspects of 
 a programs execution but requires the use of _callback_ based code to ensure 
-applications remain responsive. Thus, understanding a the behavior of an 
+applications remain responsive. Thus, understanding the behavior of an 
 application may require understanding the execution of several blocks of code 
 and how their executions are related via asynchronous callback operations.
 
@@ -15,9 +19,51 @@ questions about a Node application:
  * Long call stack construction in a debugger.
  * Resource use of a HTTP request handler.
 
-**TODO** -- say a bit more here on why these are important in introduce details 
-of the application + the code sample we are going to use.
+### Long Call Stacks
+A "long call stack" is a list of call-stacks that span asynchronous callback 
+operations.  Analagous to a synchronous callstack, "Long call stacks" are useful
+for programmers to answer the question of "what was the call path to a specific 
+point in program execution.  For example, the  following code
 
+```
+function f1() {
+  console.log(new Error().stack);
+}
+
+function f2() {
+  console.log(new Error().stack);
+  setTimeout(f1, 1000);
+}
+
+f2();
+```
+
+produces the following long stack trace on node version 8.6:
+
+```
+Error
+    at f2 (D:\tutorials\node\long-call-stack\index.js:6:15)
+    at Object.<anonymous> (D:\tutorials\node\long-call-stack\index.js:10:1)
+    at Module._compile (module.js:624:30)
+    at Object.Module._extensions..js (module.js:635:10)
+    at Module.load (module.js:545:32)
+    at tryModuleLoad (module.js:508:12)
+    at Function.Module._load (module.js:500:3)
+    at Function.Module.runMain (module.js:665:10)
+    at startup (bootstrap_node.js:187:16)
+    at bootstrap_node.js:607:3
+Error
+    at Timeout.f1 [as _onTimeout] (D:\tutorials\node\long-call-stack\index.js:2:15)
+    at ontimeout (timers.js:469:11)
+    at tryOnTimeout (timers.js:304:5)
+    at Timer.listOnTimeout (timers.js:264:5)
+```
+
+### HTTP Resource Usage
+
+**TODO** fill in details of example. 
+
+### 
 A fundamental challenge for asynchronous execution tracking is that, in the 
 Node.js model, asynchronous relationships are defined both at different layers 
 of the runtime as well as by through implicit conventions. Thus, our 
@@ -42,7 +88,7 @@ every function. Thus, from a runtime viewpoint all of the functions are
 part of the same asynchronous context regardless of which (logically 
 different) client asynchronous contexts added them. 
 
-# Terminology
+## Terminology
 Our definitions of asynchronous executions are based on three 
 binary relations over the executions of logically asynchronous JavaScript 
 functions:
@@ -110,13 +156,13 @@ asynchronous execution. At each later phase the `link`, `cause`, optional
 `externalCause`, and `execute` functions will need to be invoked to drive the 
 asynchronous execution and update/write the appropriate context information.
 
-# Asynchronous Annotations Examples
+## Asynchronous Annotations Examples
 To illustrate how the asynchronous annotation code can be used to convert a 
 `runtime` API into one that tracks asynchronous events for client code we look 
 at applying them to a sample of a callback based API as well as 
 the promise API.
 
-## Callback API
+### Callback API
 For this example we start with a simple asynchronous API that defines 
 two method for registering callbacks:
 ```
@@ -188,7 +234,7 @@ We will see the asynchronous trace:
   ...
 ```
 
-## Promise API
+### Promise API
 **TODO:** do a promise thing
 
 These two examples show how the the context relations from 
@@ -196,7 +242,7 @@ These two examples show how the the context relations from
 lifted into the Node ecosystem without the use of the _priority promise_ 
 construct (although at the loss of unified scheduling and priority).
 
-# Asynchronous Function Execution
+## Asynchronous Function Execution
 Using the core definitions we can define the following states of an 
 asynchronous function:
  * `Queued asynchronous function` is one where the "link" event has been 
@@ -204,7 +250,7 @@ asynchronous function:
  * `Ready asynchronous function` is one where a "cause" event has been 
  emited /\ is not followed by any "executeBegin" event.
 
-# Asynchronous (Sub)Tree Execution
+## Asynchronous (Sub)Tree Execution
 Each asynchronous execution in a trace can be viewed as a node in an 
 `asynchronous execution (sub)tree` with the children defined _either_ 
 by the link or cause relations. 
@@ -225,7 +271,7 @@ by the link or cause relations.
 
 **TODO** use these definitions to see trees for trace examples...
 
-# Enriched Terminology
+## Enriched Terminology
 The definitions in the "Terminology" section provide basic asynchronous 
 lifecycle events but do not capture many important features including, 
 canceled or failed rejections and, in cases of asynchronous events that 
@@ -272,23 +318,71 @@ asynchronous execution:
  * A (sub)tree has `retired asynchronous execution` when all child nodes, 
  link of causal, are in the completed state.
 
-# Asynchronous Operation Metadata
+## Asynchronous Operation Metadata
+**TODO** define the metadata associated with each async execution node.  e.g., time stamps associated w/ each state transition?
 
-# Use Cases
+## Use Cases
+Use cases for Async Context can be broken into two categories, **post-mortem** and
+**online**.  
 
-## Post-Mortem Use Cases
+**Post-Mortem Use Cases** are program analysis tasks that happen after a
+program has completed execution.  They require reconstruction of an Async Call Graph
+up to some point in time, and is achievable via an accurate event stream that 
+describes all state transitions of nodes & edges in the Async Call Graph.
+
+Examples of Post-Mortem Use Cases
+  1.  **Execution Timing Analysis** - A user wants to understand timing details of 
+      specific HTTP request.  Since the HTTP request's processing consists of multiple 
+      Async Executions, a thorough timing analysis needs to understand each node 
+      in the path from the end of the request, to the start of the request, and for 
+      each node, specific timing details around each state transition.  Such data
+      can tell us how long a request was blocked in an execution queue, or waiting
+      for some event, or actually executing.
+
+  2.  Understand parent/child relationship in async call paths  - **TODO** add text
+    
+  3.  Reconstruct async call tree to some point in time given an event stream - **TODO** add text
+
+**Online Use Cases** are use cases where the Asynchronous Context needs to be
+examined dynamically while a program is executing.  Meeting requirements of
+online use cases requires runtime and/or module support to keep an accurate
+representation of the Async Call Graph, as well as APIs to navigate the graph.
+In particular, garbage collection passes must occur on retired sub-trees.       
+
+Examples of Online Use Cases include:
+
+  1.  **Continuation Local Storage** - Analagous to thread-local-storage, but for 
+      asynchronous continuations.  Continuation Local Storage provides the
+      ability to store key/value pairs in a storage container 
+      associated with the current Async Execution.  Clients can lookup values
+      for a given key, and the lookup will walk a path on the Async Call Graph
+      until a key is found, or it reaches the root.  Continuation local storage
+      is useful when code in some Asynchronous Execution needs to know values
+      associated with some parent Asynchronous Execution.  For example, APM 
+      vendors often need to associate code execution events with a specific
+      HTTP request.
+
+  2.  **Async exception handling** - Traditional (i.e., synchronous) exception
+      handling is a multi-frame stack jump.  Asynchronous Exception Handling 
+      can be described as a when a synchronous exception handler wishes to 
+      notify intersted observers about an exception.  The set of interested 
+      observers can be succinctly described as observers on some path through 
+      the Async Call Graph.  For example, one trivial strategy would be to 
+      traverse all linked edges from the current Async Excecution to the root, 
+      and see if any registered observers are present. 
+
+  3.  **Long stack capture**
+      **TODO**  - resolve w/ explanation above. 
+
+
+### Post-Mortem Use Cases
 Post-mortem use cases occur after program execution has ended.  These include reconstruction of async context state at some point in time, or understanding timing details.  
 
-  1.  Understand execution & timing details of an async call path 
-  2.  Understand parent/child relationship in async call paths
-  3.  Reconstruct async call tree to some point in time given an event stream 
 
-## Online Use Cases
+
+### Online Use Cases
 Online use cases rely on some accurate "live tree" to navigate.   
 
-  1.  Continuation Local Storage
-  2.  Async exception handling
-  3.  Long stack capture
 
 
 ## User Space Queueing
