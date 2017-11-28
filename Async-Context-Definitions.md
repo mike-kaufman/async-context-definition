@@ -90,16 +90,30 @@ part of the same asynchronous context regardless of which (logically
 different) client asynchronous contexts added them. 
 
 ## Terminology
+A single JavaScript function may be passed to multiple asynchronous API's 
+and, in order to track the state of each of these asynchronous executions 
+independently, we must be able to distinguish between these instances. Thus, 
+we begin by defining an _asynchronous function context_ (or context) as a 
+unique identifier that is associated with any function that is passed to an 
+asynchronous API. In general we only require that fresh instances of these 
+values can be generated on demand and compared for identify. In practice 
+monotonically increasing integer values provide a suitable representation.
+For a given function _f_ we define the asynchronous context representation 
+of _f_ in context _i_ as _f<sub>i</sub>_. 
+
 Our definitions of asynchronous executions are based on three 
 binary relations over the executions of logically asynchronous JavaScript 
 functions:
- - **link** -- when the execution one function, _f_, stores a second 
- function, _g_, for later asynchronous execution we say _f_ `links` _g_. 
- - **causal** -- when the execution of a function, _f_, is the `client` code 
- that is logically responsible (according to the `runtime` API) for causing 
- the execution of a previously **linked** _g_  we say _f_ `causes` _g_.
- - **happens before** -- when a function, _f_, is asynchronously executed 
- before a second function, _g_, we say _f_ `happens before` _g_.
+ - **link** -- when the execution of function _f_ in context _i_ stores a 
+ second function _g_ in context _j_ for later asynchronous execution we say 
+ _f<sub>i</sub>_ `links` _g<sub>j</sub>_. 
+ - **causal** -- when the execution of a function _f_ in context _i_ is the 
+ `client` code that is logically responsible (according to the `runtime` API) 
+ for causing the execution of a previously **linked** _g<sub>j</sub>_  we say 
+ _f<sub>i</sub>_ `causes` _g<sub>j</sub>_.
+ - **happens before** -- when a function _f_ in context is asynchronously executed 
+ before a second function _g<sub>j</sub>_ we say _f<sub>i</sub>_ `happens before` 
+ _g<sub>j</sub>_.
 
 We define the following module code that provides the needed explicit marking 
 of API's that are exposing asynchronous behavior from a `runtime` component to 
@@ -231,7 +245,10 @@ We will see the asynchronous trace:
 ```
 
 ### Promise API
-**TODO:** do a promise thing
+Similarly we can provide a basic promise-like API that supports asynchronous context tracking 
+as follows:
+
+**TODO** promise example here.
 
 These two examples show how the the context relations from 
 [DLS17](https://www.microsoft.com/en-us/research/wp-content/uploads/2017/08/NodeAsyncContext.pdf) 
