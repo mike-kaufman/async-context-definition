@@ -5,10 +5,11 @@
 
 Node.js uses an event-driven non-blocking I/O model of execution instead of 
 multi-threading. This model greatly simplifies reasoning about many aspects of 
-a programs execution but requires the use of _callback_ based code to ensure 
+program execution but requires the use of _callback_ based code to ensure 
 applications remain responsive. Thus, understanding the behavior of an 
 application may require understanding the execution of several blocks of code 
-and how their executions are related via asynchronous callback operations.
+and how their executions are related via asynchronous callback interleavings and 
+dependencies.
 
 This document provides a specification for asynchronous execution in Node.js 
 and a model for reasoning about the relationships between asynchronous calls 
@@ -93,17 +94,12 @@ Our definitions of asynchronous executions are based on three
 binary relations over the executions of logically asynchronous JavaScript 
 functions:
  - **link** -- when the execution one function, _f_, stores a second 
- function, _g_, into a storage location (native, Node.js core, or user defined) 
- for later asynchronous execution we say _f_ `links` _g_. 
+ function, _g_, for later asynchronous execution we say _f_ `links` _g_. 
  - **causal** -- when the execution of a function, _f_, is the `client` code 
- that is locally responsible (according to the `runtime` API) for causing 
+ that is logically responsible (according to the `runtime` API) for causing 
  the execution of a previously **linked** _g_  we say _f_ `causes` _g_.
  - **happens before** -- when a function, _f_, is asynchronously executed 
  before a second function, _g_, we say _f_ `happens before` _g_.
-
-As each of these events is defined with respect to an executing parent function 
-we also want to have a notion of ordering on them. Thus, we want to timestamp 
-the start/end of each asynchronous execution and each `link` or `causal` event.
 
 We define the following module code that provides the needed explicit marking 
 of API's that are exposing asynchronous behavior from a `runtime` component to 
@@ -112,7 +108,7 @@ chain concepts.
 ```
 let globalCtxCtr = 0;
 generateFreshContext() {
-  return ++globalTimeCtr;
+  return ++globalCtxCtr;
 }
 
 let globalTimeCtr = 0;
@@ -152,9 +148,9 @@ execute(ctxf) {
 ```
 Using this code a `runtime` will provide an asynchronous API abstraction by 
 `contextifying` the functions passed to API's that it wishes to pool for later 
-asynchronous execution. At each later phase the `link`, `cause`, optional 
-`externalCause`, and `execute` functions will need to be invoked to drive the 
-asynchronous execution and update/write the appropriate context information.
+asynchronous execution. At each later phase the `link`, `cause`, and `execute` 
+functions will need to be invoked to drive the asynchronous execution and 
+update/write the appropriate context information.
 
 ## Asynchronous Annotations Examples
 To illustrate how the asynchronous annotation code can be used to convert a 
@@ -238,20 +234,12 @@ We will see the asynchronous trace:
 **TODO:** do a promise thing
 
 These two examples show how the the context relations from 
-[DLS17](https://www.microsoft.com/en-us/research/wp-content/uploads/2017/08/NodeAsyncContext.pdf) can be 
-lifted into the Node ecosystem without the use of the _priority promise_ 
+[DLS17](https://www.microsoft.com/en-us/research/wp-content/uploads/2017/08/NodeAsyncContext.pdf) 
+can be lifted into the Node ecosystem without the use of the _priority promise_ 
 construct (although at the loss of unified scheduling and priority).
 
-## Asynchronous Function Execution
-Using the core definitions we can define the following states of an 
-asynchronous function:
- * `Queued asynchronous function` is one where the "link" event has been 
- emitted /\ any "cause" event has not been emitted.
- * `Ready asynchronous function` is one where a "cause" event has been 
- emited /\ is not followed by any "executeBegin" event.
-
 ## Asynchronous (Sub)Tree Execution
-Each asynchronous execution in a trace can be viewed as a node in an 
+Each execution of a function in a trace can be viewed as a node in an 
 `asynchronous execution (sub)tree` with the children defined _either_ 
 by the link or cause relations. 
   * A given function context node, _c<sub>1</sub>_, is a `link-parent` for a 
@@ -260,14 +248,14 @@ by the link or cause relations.
   _{event: "executeBegin", ctx: c<sub>1</sub>, time: t}_ and 
   _{event: "link", ctx: c<sub>2</sub>, time: t'}_ where t < t' and, 
   if the trace contains an event 
-  _{event: "executeBegin", ctx: c<sub>1</sub>, time: t''}_, then t' < t''.
+  _{event: "executeEnd", ctx: c<sub>1</sub>, time: t''}_, where t < t'' then t' < t''.
   * A given function context node, _c<sub>1</sub>_, is a `causal-parent` for a 
   second context node, _c<sub>2</sub>_, if the `asynchronous event 
   trace` contains the entries
   _{event: "executeBegin", ctx: c<sub>1</sub>, time: t}_ and 
   _{event: "cause", ctx: c<sub>2</sub>, time: t'}_ where t < t' and, 
   if the trace contains an event 
-  _{event: "executeBegin", ctx: c<sub>1</sub>, time: t''}_, then t' < t''.
+  _{event: "executeEnd", ctx: c<sub>1</sub>, time: t''}_, where t < t'' then t' < t''.
 
 **TODO** use these definitions to see trees for trace examples...
 
