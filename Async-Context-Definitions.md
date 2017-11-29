@@ -238,17 +238,49 @@ We will see the asynchronous trace:
   {event: "executeBegin", ctx: 3, time: 11}
   //Prints "Did it"
   {event: "executeEnd", ctx: 3, time: 12}
-  {event: "executeBegin", ctx: 1, time: 13}
+  {event: "executeBegin", ctx: 2, time: 13}
   //Prints "Hello Repeating"
-  {event: "executeEnd", ctx: 1, time: 14}
+  {event: "executeEnd", ctx: 2, time: 14}
   ...
 ```
 
 ### Promise API
-Similarly we can provide a basic promise-like API that supports asynchronous context tracking 
-as follows:
+Similarly we can provide a basic promise API that supports asynchronous context tracking 
+by modifying the real promise implementation as follows: **TODO** this is super rough.
+```
+function then(onFulfilled, onRejected) {
+    cfFulfilled = contextify(onFulfilled);
+    link(cfFulfilled);
 
-**TODO** promise example here.
+    cfRejected = contextify(onRejected);
+    link(cfRejected);
+
+    if(this.isResolved) {
+      cause(cfFulfilled);
+      cause(cfRejected);
+    }
+
+  ...
+}
+
+function resolve(value) {
+  this.handlers.forEach((handler) => cause(cfFulfilled));
+  ...
+}
+
+function reject(value) {
+  this.handlers.forEach((handler) => cause(cfFulfilled));
+  ...
+}
+```
+If we invoke this API as follows (when the currentContext is 0):
+```
+TODO: some promise code goes here.
+```
+We will see the asynchronous trace:
+```
+TODO: corresponding trace goes here.
+```
 
 These two examples show how the the context relations from 
 [DLS17](https://www.microsoft.com/en-us/research/wp-content/uploads/2017/08/NodeAsyncContext.pdf) 
