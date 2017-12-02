@@ -60,7 +60,7 @@ Error
     at Timer.listOnTimeout (timers.js:264:5)
 ```
 
-### HTTP Resource Usage
+### Resource Use Monitoring
 
 **TODO** fill in details of example. 
 
@@ -110,7 +110,7 @@ functions:
  second function _g_ in context _j_ for later asynchronous execution we say 
  _f<sub>i</sub>_ `links` _g<sub>j</sub>_. 
  - **causal** -- when the execution of a function _f_ in context _i_ is the 
- `client` code that is logically responsible (according to the `runtime` API) 
+ `client` code that is logically responsible (according to the `host` API) 
  for causing the execution of a previously **linked** _g<sub>j</sub>_  we say 
  _f<sub>i</sub>_ `causes` _g<sub>j</sub>_.
  - **happens before** -- when a function _f_ in context is asynchronously executed 
@@ -118,7 +118,7 @@ functions:
  _g<sub>j</sub>_.
 
 We define the following module code that provides the needed explicit marking 
-of API's that are exposing asynchronous behavior from a `runtime` component to 
+of API's that are exposing asynchronous behavior from a `host` component to 
 `client` code and which enable the tracking of the core asynchronous execution 
 chain concepts.
 ```
@@ -132,25 +132,24 @@ generateNextTime() {
   return ++globalTimeCtr;
 }
 
-let currentExecutingContext = undefined;
-
-contextify(f) {
-  const functionCtx = generateFreshContext();
-  return { function: f, ctx: functionCtx };
-}
+let currentExecutingContext = "root";
 
 link(ctxf) {
-  //TODO: add source line in emit?
-  emit("link", ctxf.ctx, generateNextTime());
+  const linkCtx = generateFreshContext();
+  emit("link", linkCtx, generateNextTime());
+
+  return { function: f, link: linkCtx };
 }
 
 cause(ctxf) {
-  //TODO: add source line in emit?
-  emit("cause", ctxf.ctx, generateNextTime());
+  const causeCtx = generateFreshContext();
+  emit("cause", ctxf.link, causeCtx, generateNextTime());
+
+  return Object.assign(ctxf, { cause: causeCtx });
 }
 
 execute(ctxf) {
-  currentExecutingContext = { context: ctxf.ctx, execution: generateFreshContext() };
+  currentExecutingContext = { link: ctxf.link, cause: ctxf.cause, execution: generateFreshContext() };
   emit("executeBegin", currentExecutingContext, generateNextTime());
 
   try {
@@ -175,9 +174,10 @@ An event trace for an asynchronous execution must satisfy the following
 ordering and identify requirements:
  1) For any context the events must be ordered in the form: link < cause 
  < beginExecute < endExecute
- 2) A context may only appear in _one_ link/cause event.
- 3) A context may appear in multiple beginExecute/endExecute events but these 
- must have different execution context values.
+ 2) A context may only appear in _one_ link event.
+ 3) A context may appear in multiple cause events.
+ 4) A context may appear in multiple beginExecute/endExecute events but these 
+ must have different cause and execution context values.
  
 The emit events must also satisfy the grammar constraints of the language:
 ```
@@ -214,19 +214,13 @@ setInterval(() => {
 
 //Invoke the callback ONCE asynchronously on later turn of event loop
 function callbackOnce(f) {
-  const cf = contextify(f);
-  link(cf);
-  cause(cf);
-
+  const cf = cause(link(f));
   worklist.push({task: cf, isRepeat: false});
 }
 
 //Invoke the callback REPEATEDLY asynchronously on later turns of event loop
 function callbackRepeating(f) {
-  const cf = contextify(f);
-  link(cf);
-  cause(cf);
-
+  const cf = cause(link(f));
   callbackOnce({task: cf, isRepeat: true});
 }
 ```
@@ -247,28 +241,28 @@ callbackOnce(() => {
 ```
 We will see the asynchronous trace:
 ```
-  {event: "executeBegin", { context: 1, execution: 2 }, time: 0}
-  {event: "link", linkCtx: 3, time: 1}
-  {event: "cause", causeCtx: 3, time: 2}
-  {event: "link", linkCtx: 4, time: 3}
-  {event: "cause", causeCtx: 4, time: 4}
-  {event: "executeBegin", current: { context: 3, execution: 5 }, time: 5}
+  {event: "executeBegin", current: "root", time: 1}
+  {event: "link", link: 3, time: 2}
+  {event: "cause", link: 3, cause: 4, time: 3}
+  {event: "link", link: 5, time: 4}
+  {event: "cause", link: 5, cause: 6, time: 5}
+  {event: "executeBegin", current: { link: 3, cause: 4, execution: 7 }, time: 6}
   //Prints "Hello Repeating"
-  {event: "executeEnd", current: { context: 3, execution: 5 }, time: 6}
-  {event: "executeBegin", current: { context: 4, execution: 6 }, time: 7}
+  {event: "executeEnd", current: { link: 3, cause: 4, execution: 7 }, time: 7}
+  {event: "executeBegin", current: { link: 5, cause: 6, execution: 8 }, time: 8}
   //Prints "Hello Once"
-  {event: "link", linkCtx: 7, time: 8}
-  {event: "cause", causeCtx: 7, time: 9}
-  {event: "executeEnd", current: { context: 4, execution: 6 }, time: 10}
-  {event: "executeBegin", current: { context: 3, execution: 8 }, time: 11}
+  {event: "link", link: 9, time: 9}
+  {event: "cause", link: 9, cause: 10, time: 10}
+  {event: "executeEnd", current: { link: 5, cause: 6, execution: 8 }, time: 11}
+  {event: "executeBegin", current: { link: 3, cause: 4, execution: 11 }, time: 12}
   //Prints "Hello Repeating"
-  {event: "executeEnd", current: { context: 3, execution: 8 }, time: 12}
-  {event: "executeBegin", current: { context: 7, execution: 9 }, time: 13}
+  {event: "executeEnd", current: { link: 3, cause: 4, execution: 11 }, time: 13}
+  {event: "executeBegin", current: { link: 9, cause: 10, execution: 12 }, time: 14}
   //Prints "Did it"
-  {event: "executeEnd", current: { context: 7, execution: 9 }, time: 14}
-  {event: "executeBegin", current: { context: 3, execution: 10 }, time: 15}
+  {event: "executeEnd", current: { link: 9, cause: 10, execution: 12 }, time: 15}
+  {event: "executeBegin", current: { link: 3, cause: 4, execution: 13 }, time: 16}
   //Prints "Hello Repeating"
-  {event: "executeEnd", current: { context: 3, execution: 10 }, time: 16}
+  {event: "executeEnd", current: { link: 3, cause: 4, execution: 13 }, time: 17}
   ...
 ```
 
@@ -322,9 +316,21 @@ p.then((val) => {
 ```
 We will see the asynchronous trace:
 ```
-TODO: corresponding trace goes here.
+  {event: "executeBegin", current: "root", time: 1}
+  //Prints "Promise P"
+  {event: "link", link: 3, time: 2}
+  {event: "cause", link: 3, cause: 4, time: 3}
+  //Prints "Promise then"
+  {event: "link", link: 5, time: 4}
+  {event: "executeBegin", current: { link: 3, cause: 4, execution: 6 }, time: 5}
+  //Prints "Promise resolve"
+  {event: "cause", link: 5, cause: 7, time: 6}
+  {event: "executeEnd", current: { link: 3, cause: 4, execution: 6 }, time: 7}
+  {event: "executeBegin", current: { link: 5, cause: 7, execution: 8 }, time: 8}
+  //Prints "Hello 42 World!"
+  {event: "executeEnd", current: { link: 5, cause: 7, execution: 8 }, time: 9}
+  {event: "executeEnd", current: "root", time: 16}
 ```
-
 These two examples show how the the context relations from 
 [DLS17](https://www.microsoft.com/en-us/research/wp-content/uploads/2017/08/NodeAsyncContext.pdf) 
 can be lifted into the Node ecosystem without the use of the _priority promise_ 
@@ -332,8 +338,9 @@ construct (although at the loss of unified scheduling and priority).
 
 ## Asynchronous (Sub)Tree Execution
 Each execution of a function in a trace can be viewed as a node in an 
-`asynchronous execution (sub)tree` with the children defined _either_ 
-by the link or cause relations. 
+`asynchronous execution (sub)tree` with the nodes defined by the execution 
+contexts (executeBegin/executeEnd events) and children defined _either_ 
+by the link or cause relations (link and cause events). 
   * A given function context node, _c<sub>1</sub>_, is a `link-parent` for a 
   second context node, _c<sub>2</sub>_, if the `asynchronous event 
   trace` contains the entries
@@ -350,6 +357,12 @@ by the link or cause relations.
   _{event: "executeEnd", current: c<sub>1</sub>, time: t''}_, where t < t'' then t' < t''.
 
 **TODO** use these definitions to see trees for trace examples...
+
+### Long Call-Stacks from Traces and Trees
+**TODO** fill this in
+
+### Resource Use Monitoring with Traces
+**TODO** fill this in
 
 ## Enriched Terminology
 The definitions in the "Terminology" section provide basic asynchronous 
