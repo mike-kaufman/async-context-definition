@@ -64,20 +64,22 @@ Error
 
 **TODO** fill in details of example. 
 
-### 
+## Definition of an Asynchronous API
 A fundamental challenge for asynchronous execution tracking is that, in the 
-Node.js model, asynchronous relationships are defined both at different layers 
-of the runtime as well as by through implicit conventions. Thus, our 
+Node.js model, asynchronous behavior is defined both at different layers 
+of the code stack and through implicit API usage conventions. Thus, our 
 definitions and mechanisms for tracking asynchronous execution rely on:
  1. A notion of `client` code which sees an _asynchronous execution_ based on 
- a series of executed JavaScript functions from different asynchronous 
- contexts and fundamental relationships between them.
- 2. A notion of `runtime` code, which can be native C++, JavaScript in Node 
- core, or even other user code that is surfacing an asynchronous API to the 
- `client` even if the underlying execution mixes code from different 
- asynchronous client contexts in a single synchronous execution.
+ a series of executed JavaScript functions from different logical asynchronous 
+ contexts.
+ 2. A notion of `host` code, which can be native C++, JavaScript in Node 
+ core, or even other user code that is surfaces an asynchronous API to the 
+ `client` even if the underlying implementations mixes the execution of code 
+ from different logical asynchronous client contexts in a single synchronous 
+ execution.
  3. A set of explicit tagging API's that will notify us of which API's are 
- involved in these boundaries and which relations they affect.
+ involved in these boundaries, the contexts they are associated with, and 
+ which relations they affect.
 
 These issues are illustrated by the Node `timers` API which, as described 
 [here](https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/), 
@@ -89,14 +91,14 @@ every function. Thus, from a runtime viewpoint all of the functions are
 part of the same asynchronous context regardless of which (logically 
 different) client asynchronous contexts added them. 
 
-## Terminology
+## Definition of Context and Ordering
 A single JavaScript function may be passed to multiple asynchronous API's 
 and, in order to track the state of each of these asynchronous executions 
 independently, we must be able to distinguish between these instances. Thus, 
 we begin by defining an _asynchronous function context_ (or context) as a 
 unique identifier that is associated with any function that is passed to an 
 asynchronous API. In general we only require that fresh instances of these 
-values can be generated on demand and compared for identify. In practice 
+values can be generated on demand and compared for identity. In practice 
 monotonically increasing integer values provide a suitable representation.
 For a given function _f_ we define the asynchronous context representation 
 of _f_ in context _i_ as _f<sub>i</sub>_. 
@@ -138,37 +140,59 @@ contextify(f) {
 }
 
 link(ctxf) {
-  emit("link", currentExecutingContext, ctxf.ctx, generateNextTime());
+  //TODO: add source line in emit?
+  emit("link", ctxf.ctx, generateNextTime());
 }
 
 cause(ctxf) {
-  emit("cause", currentExecutingContext, ctxf.ctx, generateNextTime());
+  //TODO: add source line in emit?
+  emit("cause", ctxf.ctx, generateNextTime());
 }
 
 execute(ctxf) {
-  currentExecutingContext = ctxf.ctx;
-  emit("executeBegin", ctxf.ctx, generateNextTime());
+  currentExecutingContext = { context: ctxf.ctx, execution: generateFreshContext() };
+  emit("executeBegin", currentExecutingContext, generateNextTime());
 
   try {
     ctxf.call(null);
   }
   finally {
-    emit("executeEnd", ctxf.ctx, generateNextTime());
+    emit("executeEnd", currentExecutingContext, generateNextTime());
     currentExecutingContext = undefined;
   }
 
   return res;
 }
 ```
-Using this code a `runtime` will provide an asynchronous API abstraction by 
+Using this code a `host` will provide an asynchronous API abstraction by 
 `contextifying` the functions passed to API's that it wishes to pool for later 
 asynchronous execution. At each later phase the `link`, `cause`, and `execute` 
 functions will need to be invoked to drive the asynchronous execution and 
 update/write the appropriate context information.
 
+### Well Formed Asynchronous Event Trace
+An event trace for an asynchronous execution must satisfy the following 
+ordering and identify requirements:
+ 1) For any context the events must be ordered in the form: link < cause 
+ < beginExecute < endExecute
+ 2) A context may only appear in _one_ link/cause event.
+ 3) A context may appear in multiple beginExecute/endExecute events but these 
+ must have different execution context values.
+ 
+The emit events must also satisfy the grammar constraints of the language:
+```
+Trace := Execution* PartialExecution?
+
+Execution := beginExecution AsyncOp* endExecution
+
+PartialExecution := beginExecution AsyncOp*
+
+AsyncOp := link | cause
+```
+
 ## Asynchronous Annotations Examples
 To illustrate how the asynchronous annotation code can be used to convert a 
-`runtime` API into one that tracks asynchronous events for client code we look 
+`host` API into one that tracks asynchronous events for client code we look 
 at applying them to a sample of a callback based API as well as 
 the promise API.
 
@@ -223,30 +247,34 @@ callbackOnce(() => {
 ```
 We will see the asynchronous trace:
 ```
-  {event: "link", currentExecutingContext: 0, ctx: 1, time: 1}
-  {event: "cause", currentExecutingContext: 0, ctx: 1, time: 2}
-  {event: "link", currentExecutingContext: 0, ctx: 2, time: 3}
-  {event: "cause", currentExecutingContext: 0, ctx: 2, time: 4}
-  {event: "executeBegin", ctx: 2, time: 5}
+  {event: "executeBegin", { context: 1, execution: 2 }, time: 0}
+  {event: "link", linkCtx: 3, time: 1}
+  {event: "cause", causeCtx: 3, time: 2}
+  {event: "link", linkCtx: 4, time: 3}
+  {event: "cause", causeCtx: 4, time: 4}
+  {event: "executeBegin", current: { context: 3, execution: 5 }, time: 5}
   //Prints "Hello Repeating"
-  {event: "executeEnd", ctx: 2, time: 6}
-  {event: "executeBegin", ctx: 1, time: 7}
+  {event: "executeEnd", current: { context: 3, execution: 5 }, time: 6}
+  {event: "executeBegin", current: { context: 4, execution: 6 }, time: 7}
   //Prints "Hello Once"
-  {event: "link", currentExecutingContext: 1, ctx: 3, time: 8}
-  {event: "cause", currentExecutingContext: 1, ctx: 3, time: 9}
-  {event: "executeEnd", ctx: 1, time: 10}
-  {event: "executeBegin", ctx: 3, time: 11}
-  //Prints "Did it"
-  {event: "executeEnd", ctx: 3, time: 12}
-  {event: "executeBegin", ctx: 2, time: 13}
+  {event: "link", linkCtx: 7, time: 8}
+  {event: "cause", causeCtx: 7, time: 9}
+  {event: "executeEnd", current: { context: 4, execution: 6 }, time: 10}
+  {event: "executeBegin", current: { context: 3, execution: 8 }, time: 11}
   //Prints "Hello Repeating"
-  {event: "executeEnd", ctx: 2, time: 14}
+  {event: "executeEnd", current: { context: 3, execution: 8 }, time: 12}
+  {event: "executeBegin", current: { context: 7, execution: 9 }, time: 13}
+  //Prints "Did it"
+  {event: "executeEnd", current: { context: 7, execution: 9 }, time: 14}
+  {event: "executeBegin", current: { context: 3, execution: 10 }, time: 15}
+  //Prints "Hello Repeating"
+  {event: "executeEnd", current: { context: 3, execution: 10 }, time: 16}
   ...
 ```
 
 ### Promise API
-Similarly we can provide a basic promise API that supports asynchronous context tracking 
-by modifying the real promise implementation as follows: **TODO** this is super rough.
+Similarly we can provide a basic promise API that supports asynchronous context tracking by modifying the real promise implementation as follows: **TODO** this 
+is super rough.
 ```
 function then(onFulfilled, onRejected) {
     cfFulfilled = contextify(onFulfilled);
@@ -256,8 +284,12 @@ function then(onFulfilled, onRejected) {
     link(cfRejected);
 
     if(this.isResolved) {
-      cause(cfFulfilled);
-      cause(cfRejected);
+      if(this.success) {
+        cause(cfFulfilled);
+      }
+      else {
+        cause(cfRejected);
+      }
     }
 
   ...
@@ -275,7 +307,18 @@ function reject(value) {
 ```
 If we invoke this API as follows (when the currentContext is 0):
 ```
-TODO: some promise code goes here.
+const p = new Promise((res) => {
+  console.log("Promise p");
+  callbackOnce(() => {
+    console.log("Promise resolve");
+    res(42);
+  });
+});
+
+console.log("Promise then");
+p.then((val) => {
+  console.log(`Hello ${val} World!`);
+});
 ```
 We will see the asynchronous trace:
 ```
@@ -294,17 +337,17 @@ by the link or cause relations.
   * A given function context node, _c<sub>1</sub>_, is a `link-parent` for a 
   second context node, _c<sub>2</sub>_, if the `asynchronous event 
   trace` contains the entries
-  _{event: "executeBegin", ctx: c<sub>1</sub>, time: t}_ and 
-  _{event: "link", ctx: c<sub>2</sub>, time: t'}_ where t < t' and, 
+  _{event: "executeBegin", current: c<sub>1</sub>, time: t}_ and 
+  _{event: "link", linkCtx: c<sub>2</sub>, time: t'}_ where t < t' and, 
   if the trace contains an event 
-  _{event: "executeEnd", ctx: c<sub>1</sub>, time: t''}_, where t < t'' then t' < t''.
+  _{event: "executeEnd", current: c<sub>1</sub>, time: t''}_, where t < t'' then t' < t''.
   * A given function context node, _c<sub>1</sub>_, is a `causal-parent` for a 
   second context node, _c<sub>2</sub>_, if the `asynchronous event 
   trace` contains the entries
-  _{event: "executeBegin", ctx: c<sub>1</sub>, time: t}_ and 
-  _{event: "cause", ctx: c<sub>2</sub>, time: t'}_ where t < t' and, 
+  _{event: "executeBegin", current: c<sub>1</sub>, time: t}_ and 
+  _{event: "cause", causeCtx: c<sub>2</sub>, time: t'}_ where t < t' and, 
   if the trace contains an event 
-  _{event: "executeEnd", ctx: c<sub>1</sub>, time: t''}_, where t < t'' then t' < t''.
+  _{event: "executeEnd", current: c<sub>1</sub>, time: t''}_, where t < t'' then t' < t''.
 
 **TODO** use these definitions to see trees for trace examples...
 
