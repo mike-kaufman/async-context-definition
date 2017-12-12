@@ -1,7 +1,7 @@
 
 # Async Context Definitions
 
-## Overview
+## 1. Overview
 
 Node.js uses an event-driven non-blocking I/O model of execution instead of 
 multi-threading. This model greatly simplifies reasoning about many aspects of 
@@ -13,58 +13,19 @@ dependencies.
 
 This document provides a specification for asynchronous execution in Node.js 
 and a model for reasoning about the relationships between asynchronous calls 
-in an application. Through this document we will use two running examples of 
-tools/scenarios that need to understand asynchronous execution to answer key 
-questions about a Node application:
+in an application.  Colloquially, such relationships are called **Asynchronous Context**.  
+A formal definition of Asynchronous Context is given in section 2.  We model state
+transitions in asynchronous context as a series of discrete events that occur
+during program execution.  These events are described in detail in section 3.  The
+event streams can be used to build a directed acyclic graph, that we call the 
+**Asynchronous Call Graph**.  How the events are used to construct the Asynchronous
+Call Graph is defined in section 4. Section 5 gives a number of example problems 
+that are easily reasoned about given the terminology defined herein.  Lastly, section 6
+shows a number of common asynchronous code patterns in Node.js, and shows the event 
+stream produced from such code executing, as well as some example pictures of the 
+Asynchronous Call Graphs produced.
 
- * Long call stack construction in a debugger.
- * Resource use of a HTTP request handler.
-
-### Long Call Stacks
-A "long call stack" is a list of call-stacks that span asynchronous callback 
-operations.  Analagous to a synchronous callstack, "Long call stacks" are useful
-for programmers to answer the question of "what was the call path to a specific 
-point in program execution.  For example, the  following code
-
-```
-function f1() {
-  console.log(new Error().stack);
-}
-
-function f2() {
-  console.log(new Error().stack);
-  setTimeout(f1, 1000);
-}
-
-f2();
-```
-
-produces the following long stack trace on node version 8.6:
-
-```
-Error
-    at f2 (D:\tutorials\node\long-call-stack\index.js:6:15)
-    at Object.<anonymous> (D:\tutorials\node\long-call-stack\index.js:10:1)
-    at Module._compile (module.js:624:30)
-    at Object.Module._extensions..js (module.js:635:10)
-    at Module.load (module.js:545:32)
-    at tryModuleLoad (module.js:508:12)
-    at Function.Module._load (module.js:500:3)
-    at Function.Module.runMain (module.js:665:10)
-    at startup (bootstrap_node.js:187:16)
-    at bootstrap_node.js:607:3
-Error
-    at Timeout.f1 [as _onTimeout] (D:\tutorials\node\long-call-stack\index.js:2:15)
-    at ontimeout (timers.js:469:11)
-    at tryOnTimeout (timers.js:304:5)
-    at Timer.listOnTimeout (timers.js:264:5)
-```
-
-### Resource Use Monitoring
-
-**TODO** fill in details of example. 
-
-## Definition of an Asynchronous API
+## 2. Definition of an Asynchronous API
 A fundamental challenge for asynchronous execution tracking is that, in the 
 Node.js model, asynchronous behavior is defined both at different layers 
 of the code stack and through implicit API usage conventions. Thus, our 
@@ -91,7 +52,7 @@ every function. Thus, from a runtime viewpoint all of the functions are
 part of the same asynchronous context regardless of which (logically 
 different) client asynchronous contexts added them. 
 
-## Definition of Context and Ordering
+### Definition of Context and Ordering
 A single JavaScript function may be passed to multiple asynchronous API's 
 and, in order to track the state of each of these asynchronous executions 
 independently, we must be able to distinguish between these instances. Thus, 
@@ -112,7 +73,7 @@ functions:
  - **causal** -- when the execution of a function _f_ in context _i_ is the 
  `client` code that is logically responsible (according to the `host` API) 
  for causing the execution of a previously **linked** _g<sub>j</sub>_  we say 
- _f<sub>i</sub>_ `causes` _g<sub>j</sub>_.
+ _f<sub>i</sub>_ `causes` _g<sub>j</sub>_. 
  - **happens before** -- when a function _f_ in context is asynchronously executed 
  before a second function _g<sub>j</sub>_ we say _f<sub>i</sub>_ `happens before` 
  _g<sub>j</sub>_.
@@ -169,7 +130,7 @@ asynchronous execution. At each later phase the `link`, `cause`, and `execute`
 functions will need to be invoked to drive the asynchronous execution and 
 update/write the appropriate context information.
 
-### Well Formed Asynchronous Event Trace
+## 3. Well Formed Asynchronous Event Trace
 An event trace for an asynchronous execution must satisfy the following 
 ordering and identify requirements:
  1) For any context the events must be ordered in the form: link < cause 
@@ -336,27 +297,46 @@ These two examples show how the the context relations from
 can be lifted into the Node ecosystem without the use of the _priority promise_ 
 construct (although at the loss of unified scheduling and priority).
 
-## Asynchronous (Sub)Tree Execution
-Each execution of a function in a trace can be viewed as a node in an 
-`asynchronous execution (sub)tree` with the nodes defined by the execution 
-contexts (executeBegin/executeEnd events) and children defined _either_ 
-by the link or cause relations (link and cause events). 
-  * A given function context node, _c<sub>1</sub>_, is a `link-parent` for a 
-  second context node, _c<sub>2</sub>_, if the `asynchronous event 
-  trace` contains the entries
+## 4. Asynchronous Call Graph
+The events described above can be used to construct and maintain an
+`Asynchronous Call Graph`, which is a directed acyclic graph.
+
+Nodes are defined as follows:
+  * An "execution context" node is defined when an "executeBegin" event is received. 
+  * A "linking context" node is defined when a "link" event is received. 
+
+
+Edges are defined as follows: 
+  * A `link edge`, directed from a given "execution context" node 
+  _c<sub>1</sub>_ to second "linking context" node, _c<sub>2</sub>_
+  exists, if the `asynchronous event trace` contains the entries
   _{event: "executeBegin", current: c<sub>1</sub>, time: t}_ and 
   _{event: "link", linkCtx: c<sub>2</sub>, time: t'}_ where t < t' and, 
   if the trace contains an event 
   _{event: "executeEnd", current: c<sub>1</sub>, time: t''}_, where t < t'' then t' < t''.
-  * A given function context node, _c<sub>1</sub>_, is a `causal-parent` for a 
-  second context node, _c<sub>2</sub>_, if the `asynchronous event 
+  In this case, a `link edge` exists directed from _c<sub>1</sub>_ to _c<sub>2</sub>_.
+
+  * A `causal edge`, directed from a given "execution context" node, _c<sub>1</sub>_,
+  to a 
+  second "execution context" node, _c<sub>2</sub>_, if the `asynchronous event 
   trace` contains the entries
   _{event: "executeBegin", current: c<sub>1</sub>, time: t}_ and 
   _{event: "cause", causeCtx: c<sub>2</sub>, time: t'}_ where t < t' and, 
   if the trace contains an event 
   _{event: "executeEnd", current: c<sub>1</sub>, time: t''}_, where t < t'' then t' < t''.
+ 
+  * An `execution edge`, directed from a given "linking context" node, _c<sub>1</sub>_, 
+  to a second `linking context` node _c<sub>2</sub>_, if the `asynchronous event trace` 
+    contains the entries
+  _{event: "link", linkCtx: c<sub>1</sub>, time: t}_ and 
+  _{event: "executeBegin", current: c<sub>2</sub>, time: t''}_, where t < t'' then t' < t''.
 
-**TODO** use these definitions to see trees for trace examples...
+  **TODO** - need better definition of above - insuficient info in the event trace to know 
+  that c<sub>1</sub> is the linking node for c<sub>2</sub> 
+
+
+
+**TODO** use these definitions to see trees for trace examples.
 
 ### Long Call-Stacks from Traces and Trees
 **TODO** fill this in
@@ -414,28 +394,30 @@ asynchronous execution:
 ## Asynchronous Operation Metadata
 **TODO** define the metadata associated with each async execution node.  e.g., time stamps associated w/ each state transition?
 
-## Use Cases
+## 5. Use Cases
 Use cases for Async Context can be broken into two categories, **post-mortem** and
 **online**.  
 
+### Post-Mortem Use Cases** 
 **Post-Mortem Use Cases** are program analysis tasks that happen after a
 program has completed execution.  They require reconstruction of an Async Call Graph
 up to some point in time, and is achievable via an accurate event stream that 
 describes all state transitions of nodes & edges in the Async Call Graph.
 
-Examples of Post-Mortem Use Cases
-  1.  **Execution Timing Analysis** - A user wants to understand timing details of 
-      specific HTTP request.  Since the HTTP request's processing consists of multiple 
-      Async Executions, a thorough timing analysis needs to understand each node 
-      in the path from the end of the request, to the start of the request, and for 
-      each node, specific timing details around each state transition.  Such data
-      can tell us how long a request was blocked in an execution queue, or waiting
-      for some event, or actually executing.
+#### Execution Timing Analysis
+**Execution Timing Analysis** - A user wants to understand timing details of 
+specific HTTP request.  Since the HTTP request's processing consists of multiple 
+Async Executions, a thorough timing analysis needs to understand each node 
+in the path from the end of the request, to the start of the request, and for 
+each node, specific timing details around each state transition.  Such data
+can tell us how long a request was blocked in an execution queue, or waiting
+for some event, or actually executing.
 
   2.  Understand parent/child relationship in async call paths  - **TODO** add text
     
   3.  Reconstruct async call tree to some point in time given an event stream - **TODO** add text
 
+### Online Use Cases
 **Online Use Cases** are use cases where the Asynchronous Context needs to be
 examined dynamically while a program is executing.  Meeting requirements of
 online use cases requires runtime and/or module support to keep an accurate
@@ -444,43 +426,75 @@ In particular, garbage collection passes must occur on retired sub-trees.
 
 Examples of Online Use Cases include:
 
-  1.  **Continuation Local Storage** - Analagous to thread-local-storage, but for 
-      asynchronous continuations.  Continuation Local Storage provides the
-      ability to store key/value pairs in a storage container 
-      associated with the current Async Execution.  Clients can lookup values
-      for a given key, and the lookup will walk a path on the Async Call Graph
-      until a key is found, or it reaches the root.  Continuation local storage
-      is useful when code in some Asynchronous Execution needs to know values
-      associated with some parent Asynchronous Execution.  For example, APM 
-      vendors often need to associate code execution events with a specific
-      HTTP request.
+#### Continuation Local Storage
+Analagous to thread-local-storage, but for  asynchronous continuations.  
+Continuation Local Storage provides the ability to store key/value pairs 
+in a storage container associated with the current Async Execution.  Clients 
+can lookup values for a given key, and the lookup will walk a path on the 
+Async Call Grapp until a key is found, or it reaches the root.  Continuation 
+local storage is useful when code in some Asynchronous Execution needs to know 
+values associated with some parent Asynchronous Execution.  For example, APM 
+vendors often need to associate code execution events with a specific
+HTTP request.
 
-  2.  **Async exception handling** - Traditional (i.e., synchronous) exception
-      handling is a multi-frame stack jump.  Asynchronous Exception Handling 
-      can be described as a when a synchronous exception handler wishes to 
-      notify intersted observers about an exception.  The set of interested 
-      observers can be succinctly described as observers on some path through 
-      the Async Call Graph.  For example, one trivial strategy would be to 
-      traverse all linked edges from the current Async Excecution to the root, 
-      and see if any registered observers are present. 
+#### Async exception handling
+Traditional (i.e., synchronous) exception
+handling is a multi-frame stack jump.  Asynchronous Exception Handling 
+can be described as a when a synchronous exception handler wishes to 
+notify intersted observers about an exception.  The set of interested 
+observers can be succinctly described as observers on some path through 
+the Async Call Graph.  For example, one trivial strategy would be to 
+traverse all linked edges from the current Async Excecution to the root, 
+and see if any registered observers are present. 
 
-  3.  **Long stack capture**
-      **TODO**  - resolve w/ explanation above. 
+#### Long Call Stacks
+A **long call stack** is a list of call-stacks that  span asynchronous callback 
+operations.  Analagous to a synchronous callstack, "Long call stacks" are useful 
+for programmers to answer the question of "what was the call path to a specific 
+point in program execution.  For example, the  following code
 
+```
+function f1() {
+  console.log(new Error().stack);
+}
 
-### Post-Mortem Use Cases
-Post-mortem use cases occur after program execution has ended.  These include reconstruction of async context state at some point in time, or understanding timing details.  
+function f2() {
+  console.log(new Error().stack);
+  setTimeout(f1, 1000);
+}
 
+f2();
+```
 
+produces the following long stack trace on node version 8.6:
 
-### Online Use Cases
-Online use cases rely on some accurate "live tree" to navigate.   
+```
+Error
+    at f2 (D:\tutorials\node\long-call-stack\index.js:6:15)
+    at Object.<anonymous> (D:\tutorials\node\long-call-stack\index.js:10:1)
+    at Module._compile (module.js:624:30)
+    at Object.Module._extensions..js (module.js:635:10)
+    at Module.load (module.js:545:32)
+    at tryModuleLoad (module.js:508:12)
+    at Function.Module._load (module.js:500:3)
+    at Function.Module.runMain (module.js:665:10)
+    at startup (bootstrap_node.js:187:16)
+    at bootstrap_node.js:607:3
+Error
+    at Timeout.f1 [as _onTimeout] (D:\tutorials\node\long-call-stack\index.js:2:15)
+    at ontimeout (timers.js:469:11)
+    at tryOnTimeout (timers.js:304:5)
+    at Timer.listOnTimeout (timers.js:264:5)
+```
 
+### Resource Use Monitoring
+
+**TODO** fill in details of example. 
 
 
 ## User Space Queueing
 
-## Examples
+## 6. Examples
 
 ### Promise.All
 
