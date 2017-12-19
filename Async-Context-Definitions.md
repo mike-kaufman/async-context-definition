@@ -13,17 +13,18 @@ dependencies.
 
 This document provides a specification for asynchronous execution in Node.js 
 and a model for reasoning about the relationships between asynchronous calls 
-in an application.  Colloquially, such relationships are called **Asynchronous Context**.  
-A formal definition of Asynchronous Context is given in section 2.  We model state
-transitions in asynchronous context as a series of discrete events that occur
-during program execution.  These events are described in detail in section 3.  The
-event streams can be used to build a directed acyclic graph, that we call the 
-**Asynchronous Call Graph**.  How the events are used to construct the Asynchronous
-Call Graph is defined in section 4. Section 5 gives a number of example problems 
-that are easily reasoned about given the terminology defined herein.  Lastly, section 6
-shows a number of common asynchronous code patterns in Node.js, and shows the event 
-stream produced from such code executing, as well as some example pictures of the 
-Asynchronous Call Graphs produced.
+in an application. Colloquially, such relationships are called 
+**Asynchronous Context**. A formal definition of Asynchronous Context is given 
+in section 2. We model state transitions in asynchronous context as a series 
+of discrete events that occur during program execution. These events are 
+described in detail in section 3. The event streams can be used to build a 
+directed acyclic graph, that we call the **Asynchronous Call Graph**. How the 
+events are used to construct the Asynchronous Call Graph is defined in 
+section 4. Section 5 gives a number of example problems that are easily 
+reasoned about given the terminology defined herein. Lastly, section 6 shows a 
+number of common asynchronous code patterns in Node.js, and shows the event 
+stream produced from such code executing, as well as some example pictures of 
+the Asynchronous Call Graphs produced.
 
 ## 2. Definition of an Asynchronous API
 A fundamental challenge for asynchronous execution tracking is that, in the 
@@ -74,9 +75,9 @@ functions:
  `client` code that is logically responsible (according to the `host` API) 
  for causing the execution of a previously **linked** _g<sub>j</sub>_  we say 
  _f<sub>i</sub>_ `causes` _g<sub>j</sub>_. 
- - **happens before** -- when a function _f_ in context is asynchronously executed 
- before a second function _g<sub>j</sub>_ we say _f<sub>i</sub>_ `happens before` 
- _g<sub>j</sub>_.
+ - **happens before** -- when a function _f_ in context is asynchronously 
+ executed before a second function _g<sub>j</sub>_ we say _f<sub>i</sub>_ 
+ `happens before` _g<sub>j</sub>_.
 
 We define the following module code that provides the needed explicit marking 
 of API's that are exposing asynchronous behavior from a `host` component to 
@@ -138,7 +139,7 @@ ordering and identify requirements:
  2) A context may only appear in _one_ link event.
  3) A context may appear in multiple cause events.
  4) A context may appear in multiple beginExecute/endExecute events but these 
- must have different cause and execution context values.
+ must have different execution context values.
  
 The emit events must also satisfy the grammar constraints of the language:
 ```
@@ -228,8 +229,9 @@ We will see the asynchronous trace:
 ```
 
 ### Promise API
-Similarly we can provide a basic promise API that supports asynchronous context tracking by modifying the real promise implementation as follows: **TODO** this 
-is super rough.
+Similarly we can provide a basic promise API that supports asynchronous 
+context tracking by modifying the real promise implementation as follows: 
+**TODO** this is super rough.
 ```
 function then(onFulfilled, onRejected) {
     cfFulfilled = contextify(onFulfilled);
@@ -302,7 +304,8 @@ The events described above can be used to construct and maintain an
 `Asynchronous Call Graph`, which is a directed acyclic graph.
 
 Nodes are defined as follows:
-  * An "execution context" node is defined when an "executeBegin" event is received. 
+  * An "execution context" node is defined when an "executeBegin" event 
+  is received. 
   * A "linking context" node is defined when a "link" event is received. 
 
 
@@ -312,29 +315,26 @@ Edges are defined as follows:
   exists, if the `asynchronous event trace` contains the entries
   _{event: "executeBegin", current: c<sub>1</sub>, time: t}_ and 
   _{event: "link", linkCtx: c<sub>2</sub>, time: t'}_ where t < t' and, 
-  if the trace contains an event 
-  _{event: "executeEnd", current: c<sub>1</sub>, time: t''}_, where t < t'' then t' < t''.
-  In this case, a `link edge` exists directed from _c<sub>1</sub>_ to _c<sub>2</sub>_.
+  if the trace contains an event _{event: "executeEnd", current: c<sub>1</sub>, 
+  time: t''}_, where t < t'' then t' < t''.  In this case, a `link edge` 
+  exists directed from _c<sub>1</sub>_ to _c<sub>2</sub>_.
 
-  * A `causal edge`, directed from a given "execution context" node, _c<sub>1</sub>_,
-  to a 
-  second "execution context" node, _c<sub>2</sub>_, if the `asynchronous event 
-  trace` contains the entries
-  _{event: "executeBegin", current: c<sub>1</sub>, time: t}_ and 
-  _{event: "cause", causeCtx: c<sub>2</sub>, time: t'}_ where t < t' and, 
-  if the trace contains an event 
-  _{event: "executeEnd", current: c<sub>1</sub>, time: t''}_, where t < t'' then t' < t''.
+  * A `causal edge`, directed from a given "execution context" node, 
+  _c<sub>1</sub>_, to a second "execution context" node, _c<sub>2</sub>_, if 
+  the `asynchronous event trace` contains the entries _{event: "executeBegin", 
+  current: c<sub>1</sub>, time: t}_ and _{event: "cause", causeCtx: 
+  c<sub>2</sub>, time: t'}_ where t < t' and, if the trace contains an event 
+  _{event: "executeEnd", current: c<sub>1</sub>, time: t''}_, where t < t'' 
+  then t' < t''.
  
-  * An `execution edge`, directed from a given "linking context" node, _c<sub>1</sub>_, 
-  to a second `linking context` node _c<sub>2</sub>_, if the `asynchronous event trace` 
-    contains the entries
-  _{event: "link", linkCtx: c<sub>1</sub>, time: t}_ and 
-  _{event: "executeBegin", current: c<sub>2</sub>, time: t''}_, where t < t'' then t' < t''.
+  * An `execution edge`, directed from a given "linking context" node, 
+  _c<sub>1</sub>_, to a second `linking context` node _c<sub>2</sub>_, if the 
+  `asynchronous event trace` contains the entries _{event: "link", linkCtx: 
+  c<sub>1</sub>, time: t}_ and _{event: "executeBegin", current: c<sub>2</sub>, 
+  time: t''}_, where t < t'' then t' < t''.
 
-  **TODO** - need better definition of above - insuficient info in the event trace to know 
-  that c<sub>1</sub> is the linking node for c<sub>2</sub> 
-
-
+**TODO** - need better definition of above - insuficient info in the event 
+trace to know that c<sub>1</sub> is the linking node for c<sub>2</sub> 
 
 **TODO** use these definitions to see trees for trace examples.
 
@@ -392,7 +392,8 @@ asynchronous execution:
  link of causal, are in the completed state.
 
 ## Asynchronous Operation Metadata
-**TODO** define the metadata associated with each async execution node.  e.g., time stamps associated w/ each state transition?
+**TODO** define the metadata associated with each async execution node.  e.g., 
+time stamps associated w/ each state transition?
 
 ## 5. Use Cases
 Use cases for Async Context can be broken into two categories, **post-mortem** and
@@ -400,58 +401,59 @@ Use cases for Async Context can be broken into two categories, **post-mortem** a
 
 ### Post-Mortem Use Cases** 
 **Post-Mortem Use Cases** are program analysis tasks that happen after a
-program has completed execution.  They require reconstruction of an Async Call Graph
-up to some point in time, and is achievable via an accurate event stream that 
-describes all state transitions of nodes & edges in the Async Call Graph.
+program has completed execution. They require reconstruction of an Async Call 
+Graph up to some point in time, and is achievable via an accurate event stream 
+that describes all state transitions of nodes & edges in the Async Call Graph.
 
 #### Execution Timing Analysis
 **Execution Timing Analysis** - A user wants to understand timing details of 
-specific HTTP request.  Since the HTTP request's processing consists of multiple 
-Async Executions, a thorough timing analysis needs to understand each node 
-in the path from the end of the request, to the start of the request, and for 
-each node, specific timing details around each state transition.  Such data
+specific HTTP request. Since the HTTP request's processing consists of 
+multiple Async Executions, a thorough timing analysis needs to understand each 
+node in the path from the end of the request, to the start of the request, and 
+for each node, specific timing details around each state transition. Such data
 can tell us how long a request was blocked in an execution queue, or waiting
 for some event, or actually executing.
 
-  2.  Understand parent/child relationship in async call paths  - **TODO** add text
+  2.  Understand parent/child relationship in async call paths  - **TODO** add 
+  text
     
-  3.  Reconstruct async call tree to some point in time given an event stream - **TODO** add text
+  3.  Reconstruct async call tree to some point in time given an event stream 
+  - **TODO** add text
 
 ### Online Use Cases
 **Online Use Cases** are use cases where the Asynchronous Context needs to be
-examined dynamically while a program is executing.  Meeting requirements of
+examined dynamically while a program is executing. Meeting requirements of
 online use cases requires runtime and/or module support to keep an accurate
-representation of the Async Call Graph, as well as APIs to navigate the graph.
+representation of the Async Call Graph, as well as APIs to navigate the graph. 
 In particular, garbage collection passes must occur on retired sub-trees.       
 
 Examples of Online Use Cases include:
 
 #### Continuation Local Storage
-Analagous to thread-local-storage, but for  asynchronous continuations.  
+Analagous to thread-local-storage, but for asynchronous continuations.  
 Continuation Local Storage provides the ability to store key/value pairs 
-in a storage container associated with the current Async Execution.  Clients 
+in a storage container associated with the current Async Execution. Clients 
 can lookup values for a given key, and the lookup will walk a path on the 
-Async Call Grapp until a key is found, or it reaches the root.  Continuation 
+Async Call Grapp until a key is found, or it reaches the root. Continuation 
 local storage is useful when code in some Asynchronous Execution needs to know 
-values associated with some parent Asynchronous Execution.  For example, APM 
+values associated with some parent Asynchronous Execution. For example, APM 
 vendors often need to associate code execution events with a specific
 HTTP request.
 
 #### Async exception handling
 Traditional (i.e., synchronous) exception
-handling is a multi-frame stack jump.  Asynchronous Exception Handling 
+handling is a multi-frame stack jump. Asynchronous Exception Handling 
 can be described as a when a synchronous exception handler wishes to 
-notify intersted observers about an exception.  The set of interested 
+notify intersted observers about an exception. The set of interested 
 observers can be succinctly described as observers on some path through 
-the Async Call Graph.  For example, one trivial strategy would be to 
+the Async Call Graph. For example, one trivial strategy would be to 
 traverse all linked edges from the current Async Excecution to the root, 
 and see if any registered observers are present. 
 
 #### Long Call Stacks
-A **long call stack** is a list of call-stacks that  span asynchronous callback 
-operations.  Analagous to a synchronous callstack, "Long call stacks" are useful 
-for programmers to answer the question of "what was the call path to a specific 
-point in program execution.  For example, the  following code
+A **long call stack** is a list of call-stacks that span asynchronous callback 
+operations. Analagous to a synchronous callstack, "Long call stacks" are 
+useful for programmers to answer the question of "what was the call path to a specific point in program execution. For example, the  following code
 
 ```
 function f1() {
