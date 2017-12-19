@@ -4,12 +4,12 @@
 ## 1. Overview
 
 Node.js uses an event-driven non-blocking I/O model of execution instead of 
-multi-threading. This model greatly simplifies reasoning about many aspects of 
-program execution but requires the use of _callback_ based code to ensure 
-applications remain responsive. Thus, understanding the behavior of an 
-application may require understanding the execution of several blocks of code 
-and how their executions are related via asynchronous callback interleavings and 
-dependencies.
+multi-threading. This model simplifies reasoning about many aspects of 
+program execution but requires the use of _callback_ or _promise_ based code 
+to ensure applications remain responsive. Thus, understanding the behavior of 
+an application requires understanding the execution of several blocks of code 
+and how their executions are related via asynchronous callback interleavings 
+and execution dependencies.
 
 This document provides a specification for asynchronous execution in Node.js 
 and a model for reasoning about the relationships between asynchronous calls 
@@ -23,34 +23,33 @@ events are used to construct the Asynchronous Call Graph is defined in
 section 4. Section 5 gives a number of example problems that are easily 
 reasoned about given the terminology defined herein. Lastly, section 6 shows a 
 number of common asynchronous code patterns in Node.js, and shows the event 
-stream produced from such code executing, as well as some example pictures of 
-the Asynchronous Call Graphs produced.
+stream produced from such code executing, as well as some examples of 
+the resulting Asynchronous Call Graphs.
 
 ## 2. Definition of an Asynchronous API
 A fundamental challenge for asynchronous execution tracking is that, in the 
 Node.js model, asynchronous behavior is defined both at different layers 
 of the code stack and through implicit API usage conventions. Thus, our 
 definitions and mechanisms for tracking asynchronous execution rely on:
- 1. A notion of `client` code which sees an _asynchronous execution_ based on 
- a series of executed JavaScript functions from different logical asynchronous 
- contexts.
- 2. A notion of `host` code, which can be native C++, JavaScript in Node 
- core, or even other user code that is surfaces an asynchronous API to the 
- `client` even if the underlying implementations mixes the execution of code 
- from different logical asynchronous client contexts in a single synchronous 
- execution.
+ 1. A convention based notion of `client` code which sees 
+ _asynchronous execution_ based on a sequence of executed JavaScript functions 
+ from logical asynchronous contexts.
+ 2. A convention based notion of `host` code, which can be native C++, 
+ JavaScript in Node core, or even other userland code that surfaces an 
+ asynchronous API to the `client` -- even if the underlying implementations 
+ mixes the execution of code from different logical asynchronous client 
+ contexts in a single synchronous execution.
  3. A set of explicit tagging API's that will notify us of which API's are 
  involved in these boundaries, the contexts they are associated with, and 
  which relations they affect.
 
 These issues are illustrated by the Node `timers` API which, as described 
 [here](https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/), 
-is implemented in JavaScript code and uses a list of timer callbacks to 
-track _every_ function to be executed when a given timespan has elapsed. 
-When the timespan expires a single synchronous function is called from the 
-LibUV library, `listOnTimeout`, that iterates over the list and executes 
-every function. Thus, from a runtime viewpoint all of the functions are 
-part of the same asynchronous context regardless of which (logically 
+is implemented using JavaScript in Node core and uses a list of timer 
+callbacks to track _every_ function to be executed when a given timespan has elapsed. When the timespan expires a single synchronous function is called 
+from the LibUV library, `listOnTimeout`, that iterates over the list and 
+executes every function. Thus, from a runtime viewpoint all of the functions 
+are part of the same asynchronous context regardless of which (logically 
 different) client asynchronous contexts added them. 
 
 ### Definition of Context and Ordering
