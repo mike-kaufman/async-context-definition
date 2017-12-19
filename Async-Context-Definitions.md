@@ -55,11 +55,11 @@ different) client asynchronous contexts added them.
 ### Definition of Context and Ordering
 A single JavaScript function may be passed to multiple asynchronous API's 
 and, in order to track the state of each of these asynchronous executions 
-independently, we must be able to distinguish between these instances. Thus, 
+independently, we must be able to distinguish between uses of the same 
+function from multiple logically different asynchronous executions. Thus, 
 we begin by defining an _asynchronous function context_ (or context) as a 
-unique identifier that is associated with any function that is passed to an 
-asynchronous API. In general we only require that fresh instances of these 
-values can be generated on demand and compared for identity. In practice 
+unique identifier. We only require that fresh instances of these 
+values can be generated on demand and compared for equality. In practice 
 monotonically increasing integer values provide a suitable representation.
 For a given function _f_ we define the asynchronous context representation 
 of _f_ in context _i_ as _f<sub>i</sub>_. 
@@ -70,18 +70,18 @@ functions:
  - **link** -- when the execution of function _f_ in context _i_ stores a 
  second function _g_ in context _j_ for later asynchronous execution we say 
  _f<sub>i</sub>_ `links` _g<sub>j</sub>_. 
- - **causal** -- when the execution of a function _f_ in context _i_ is the 
- `client` code that is logically responsible (according to the `host` API) 
- for causing the execution of a previously **linked** _g<sub>j</sub>_  we say 
- _f<sub>i</sub>_ `causes` _g<sub>j</sub>_. 
- - **happens before** -- when a function _f_ in context is asynchronously 
- executed before a second function _g<sub>j</sub>_ we say _f<sub>i</sub>_ 
+ - **causal** -- when the execution of a function _f_ in context _i_ is 
+ logically responsible (according to the `host` API) 
+ for causing the execution of a previously **linked** _g_ from context _j_ 
+ we say _f<sub>i</sub>_ `causes` _g<sub>j</sub>_. 
+ - **happens before** -- when a function _f_ in context _i_ is asynchronously 
+ executed before a second function _g_ in context _j_ we say _f<sub>i</sub>_ 
  `happens before` _g<sub>j</sub>_.
 
-We define the following module code that provides the needed explicit marking 
-of API's that are exposing asynchronous behavior from a `host` component to 
+We define the following module code that provides the required functions to
+explicitly mark API's that expose asynchronous behavior from `host` code to 
 `client` code and which enable the tracking of the core asynchronous execution 
-chain concepts.
+concepts.
 ```
 let globalCtxCtr = 0;
 generateFreshContext() {
@@ -95,7 +95,7 @@ generateNextTime() {
 
 let currentExecutingContext = "root";
 
-link(ctxf) {
+link(f) {
   const linkCtx = generateFreshContext();
   emit("link", linkCtx, generateNextTime());
 
@@ -110,15 +110,22 @@ cause(ctxf) {
 }
 
 execute(ctxf) {
-  currentExecutingContext = { link: ctxf.link, cause: ctxf.cause, execution: generateFreshContext() };
+  const origCtx = currentExecutingContext;
+  currentExecutingContext = { 
+    link: ctxf.link, 
+    cause: ctxf.cause, 
+    execution: generateFreshContext() 
+  };
+
   emit("executeBegin", currentExecutingContext, generateNextTime());
 
+  let res = undefined;
   try {
-    ctxf.call(null);
+    res = ctxf.function.call(null);
   }
   finally {
     emit("executeEnd", currentExecutingContext, generateNextTime());
-    currentExecutingContext = undefined;
+    currentExecutingContext = origCtx;
   }
 
   return res;
@@ -135,10 +142,10 @@ An event trace for an asynchronous execution must satisfy the following
 ordering and identify requirements:
  1) For any context the events must be ordered in the form: link < cause 
  < beginExecute < endExecute
- 2) A context may only appear in _one_ link event.
- 3) A context may appear in multiple cause events.
- 4) A context may appear in multiple beginExecute/endExecute events but these 
- must have different execution context values.
+ 2) A single link context, cause context, or execute context may only be 
+ introduced in a single event.
+ 3) A link context may appear in multiple `cause` and `execute` events.
+ 4) a cause context may appear in multiple `execute` events.
  
 The emit events must also satisfy the grammar constraints of the language:
 ```
