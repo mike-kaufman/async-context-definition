@@ -311,44 +311,59 @@ The events described above can be used to construct and maintain an
 
 Nodes are defined as follows:
   * An "execution context" node is defined when an "executeBegin" event 
-  is received. 
-  * A "linking context" node is defined when a "link" event is received. 
+  is received and all linking/causal events will create child edges from 
+  this node until the matching "executeEnd" event is seen.
 
+  * A "linking context" node is defined when a "link" event is received and 
+  is associated with the data from the link event.
+
+  * A "causal context" node is defined when a "cause" event is received and 
+  is associated with the data from the cause event.
 
 Edges are defined as follows: 
-  * A `link edge`, directed from a given "execution context" node 
-  _c<sub>1</sub>_ to second "linking context" node, _c<sub>2</sub>_
-  exists, if the `asynchronous event trace` contains the entries
-  _{event: "executeBegin", current: c<sub>1</sub>, time: t}_ and 
-  _{event: "link", linkCtx: c<sub>2</sub>, time: t'}_ where t < t' and, 
-  if the trace contains an event _{event: "executeEnd", current: c<sub>1</sub>, 
-  time: t''}_, where t < t'' then t' < t''.  In this case, a `link edge` 
-  exists directed from _c<sub>1</sub>_ to _c<sub>2</sub>_.
+  * A "link" edge is added from the current "execution context" node 
+  to a newly created "linking context" node when a "link" event is 
+  received. 
 
-  * A `causal edge`, directed from a given "execution context" node, 
-  _c<sub>1</sub>_, to a second "execution context" node, _c<sub>2</sub>_, if 
-  the `asynchronous event trace` contains the entries _{event: "executeBegin", 
-  current: c<sub>1</sub>, time: t}_ and _{event: "cause", causeCtx: 
-  c<sub>2</sub>, time: t'}_ where t < t' and, if the trace contains an event 
-  _{event: "executeEnd", current: c<sub>1</sub>, time: t''}_, where t < t'' 
-  then t' < t''.
- 
-  * An `execution edge`, directed from a given "linking context" node, 
-  _c<sub>1</sub>_, to a second `linking context` node _c<sub>2</sub>_, if the 
-  `asynchronous event trace` contains the entries _{event: "link", linkCtx: 
-  c<sub>1</sub>, time: t}_ and _{event: "executeBegin", current: c<sub>2</sub>, 
-  time: t''}_, where t < t'' then t' < t''.
+  * A "causal" edge is added from the current "execution context" node 
+  to a newly created "causal context" node when a "cause" event is 
+  received. An additional "linked by" cross-edge is added to the 
+  "linking context" node with the corresponding link context value.
 
-**TODO** - need better definition of above - insuficient info in the event 
-trace to know that c<sub>1</sub> is the linking node for c<sub>2</sub> 
+  * An "execution" edge is added into the newly created "execution context" 
+  node from the "causual context" node with the corresponding causal context 
+  value.
 
 **TODO** use these definitions to see trees for trace examples.
 
-### Long Call-Stacks from Traces and Trees
-**TODO** fill this in
-
 ### Resource Use Monitoring with Traces
 **TODO** fill this in
+
+### Long Call-Stacks from Graphs
+Using the previous definitions we can construct long call stacks using the 
+_causal_ -> _linked-by_ ->_link_ parent path in the Asynchronous Call Graph. 
+As usual the bottom of the call-stack can be extracted from the current call 
+stack up to the frame that is a `host` asynchronous API. At this point we 
+then look at the _causal_ parent and follow the _linked_by_ parent to find 
+the link node which is the point in execution when this asynchronous call 
+with the scope where the callback was linked. From here if we utilize 
+additional **Asynchronous Operation Metadata** (defined below) containing 
+the line number & call stack at the time of the link operation we can get 
+the next set of frames to stitch together to build the long call-stack. 
+If this process is continued we will eventually reach the `root` context 
+and the top of the desired long call-stack.
+
+**TODO** and example here.
+
+## Asynchronous Operation Metadata
+**TODO** define the metadata associated with each async execution node.  e.g., 
+time stamps associated w/ each state transition?
+
+Class 1 -- builtin collection support for metadata that is pretty commonly 
+useful and easy/inexpensive to collect like line numbers or time-stamps.
+
+Class 2 -- user defined, can we provide an API for collection of needed but 
+not univerally useful data like call-stacks.
 
 ## Enriched Terminology
 The definitions in the "Terminology" section provide basic asynchronous 
@@ -396,10 +411,6 @@ asynchronous execution:
  node, link or causal, that has not completed.
  * A (sub)tree has `retired asynchronous execution` when all child nodes, 
  link of causal, are in the completed state.
-
-## Asynchronous Operation Metadata
-**TODO** define the metadata associated with each async execution node.  e.g., 
-time stamps associated w/ each state transition?
 
 ## 5. Use Cases
 Use cases for Async Context can be broken into two categories, **post-mortem** and
