@@ -8,7 +8,7 @@ multi-threading. This model simplifies reasoning about many aspects of
 program execution but requires the use of _callback_ or _promise_ based code 
 to ensure applications remain responsive. Thus, understanding the behavior of 
 an application requires understanding the execution of several blocks of code 
-and how their executions are related via asynchronous callback interleavings 
+and how their executions' are related via asynchronous callback interleavings 
 and execution dependencies.
 
 This document provides a specification for asynchronous execution in Node.js 
@@ -46,7 +46,8 @@ definitions and mechanisms for tracking asynchronous execution rely on:
 These issues are illustrated by the Node `timers` API which, as described 
 [here](https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/), 
 is implemented using JavaScript in Node core and uses a list of timer 
-callbacks to track _every_ function to be executed when a given timespan has elapsed. When the timespan expires a single synchronous function is called 
+callbacks to track _every_ function to be executed when a given timespan has 
+elapsed. When the timespan expires a single synchronous function is called 
 from the LibUV library, `listOnTimeout`, that iterates over the list and 
 executes every function. Thus, from a runtime viewpoint all of the functions 
 are part of the same asynchronous context regardless of which (logically 
@@ -64,9 +65,12 @@ monotonically increasing integer values provide a suitable representation.
 For a given function _f_ we define the asynchronous context representation 
 of _f_ in context _i_ as _f<sub>i</sub>_. 
 
-Our definitions of asynchronous executions are based on three 
+Our definitions of asynchronous executions are based on four 
 binary relations over the executions of logically asynchronous JavaScript 
 functions:
+ - **execution** -- when a function _f_ is executed we create a unique 
+ fresh context for it _c_ and use this as the `execution` context for 
+ asynchronous events that happen during the execution of _f_.
  - **link** -- when the execution of function _f_ in context _i_ stores a 
  second function _g_ in context _j_ for later asynchronous execution we say 
  _f<sub>i</sub>_ `links` _g<sub>j</sub>_. 
@@ -74,9 +78,10 @@ functions:
  logically responsible (according to the `host` API) 
  for causing the execution of a previously **linked** _g_ from context _j_ 
  we say _f<sub>i</sub>_ `causes` _g<sub>j</sub>_. 
- - **happens before** -- when a function _f_ in context _i_ is asynchronously 
- executed before a second function _g_ in context _j_ we say _f<sub>i</sub>_ 
- `happens before` _g<sub>j</sub>_.
+ - **happens before** -- when a function _f_ with execution context _i_ 
+ is asynchronously executed before a second function _g_ with execution 
+ context _j_ then _i_ < _j_ and we say _f<sub>i</sub>_ `happens before` 
+ _g<sub>j</sub>_.
 
 We define the following module code that provides the required functions to
 explicitly mark API's that expose asynchronous behavior from `host` code to 
@@ -470,7 +475,8 @@ and see if any registered observers are present.
 #### Long Call Stacks
 A **long call stack** is a list of call-stacks that span asynchronous callback 
 operations. Analagous to a synchronous callstack, "Long call stacks" are 
-useful for programmers to answer the question of "what was the call path to a specific point in program execution. For example, the  following code
+useful for programmers to answer the question of "what was the call path to a 
+specific point in program execution. For example, the  following code
 
 ```
 function f1() {
