@@ -342,23 +342,53 @@ Edges are defined as follows:
 **TODO** use these definitions to see trees for trace examples.
 
 ### Resource Use Monitoring with Traces
-**TODO** fill this in
+A common task for a developer of a web-service is to understand how 
+long it took to service a user request as well as how much time was 
+spent in various sub-tasks of the processing -- in synchronous JavaScript 
+code or waiting in various asynchronous queues. The first question can 
+be easily answered by recording the time when HTTP request is recieved 
+and when the response end is written (as provided by many frameworks 
+today). However, to answer the second question we need to know how much 
+time the callback executed in response to the HTTP event + the time of 
+all asynchronous callbacks it causes. The time in the synchronous JS 
+code is the total time minus this sum while the time spent blocked in 
+asynchronous queues is simply the sum of this time.
+
+Computing the total time spent in callbacks that are relevant to a single HTTP 
+request while ignoring the time spent in other callbacks requires tracking the 
+`causal` relation. Conceptually, we can identify a root node in the 
+`ascynronous call graph` that we want to compute the inclusive execution time 
+for, in our case the HTTP callback handler, and traverse all of the 
+`causal context` edge -> `execution context` edge to reach a child execution 
+node, suming up the times for each of the child nodes as we go (contained in 
+the _Asynchronous Operation Metadata_ defined below). The resulting value is 
+the total blocking execution time spent handling the HTTP request. 
+
+**TODO** show a sample of code + async graph with multiple simultanious 
+http handlers and highlight the 1 we are looking at.
 
 ### Long Call-Stacks from Graphs
-Using the previous definitions we can construct long call stacks using the 
-_causal_ -> _linked-by_ ->_link_ parent path in the Asynchronous Call Graph. 
-As usual the bottom of the call-stack can be extracted from the current call 
-stack up to the frame that is a `host` asynchronous API. At this point we 
+Another common task is constructing _long call stacks_. These call stacks 
+connect the lexical call stacks that surround it, but were torn due to 
+asynchronous execution, into a simple linear structure. To construct a 
+long call stack from a set of lexical call-stacks for a given callback 
+execution we need to know which of them contain variables/values that were 
+live, and potentially relevant, when the callback was created.
+
+Using the `ascynronous call graph` definitions we can construct long call 
+stacks using the _causal_ -> _linked-by_ ->_link_ parent path in the graph. 
+The bottom of the call-stack can be extracted from the current call stack 
+up to the frame that is a `host` asynchronous API as usual. At this point we 
 then look at the _causal_ parent and follow the _linked_by_ parent to find 
 the link node which is the point in execution when this asynchronous call 
 with the scope where the callback was linked. From here if we utilize 
-additional **Asynchronous Operation Metadata** (defined below) containing 
+additional _Asynchronous Operation Metadata_ (defined below) containing 
 the line number & call stack at the time of the link operation we can get 
 the next set of frames to stitch together to build the long call-stack. 
 If this process is continued we will eventually reach the `root` context 
 and the top of the desired long call-stack.
 
-**TODO** and example here.
+**TODO** add an example with sample code etc.
 
 ## Asynchronous Operation Metadata
 **TODO** define the metadata associated with each async execution node.  e.g., 
