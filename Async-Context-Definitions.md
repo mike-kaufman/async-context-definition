@@ -425,34 +425,43 @@ lifecycle events but do not capture many important features including,
 canceled events or failed rejections and, in cases of asynchronous events that 
 depend on environmental interaction, what external events may be relevant.
 
-To address these ...
+To support scenarios that require this type of information we extend the vocabulary 
+of events recorded in the asynchronous execution trace with the following hooks:
+
 ```
 cancel(ctxf) {
-    emit("cancel", ctxf.ctx, generateNextTime());
+    emit("cancel", ctxf.linkCtx, generateNextTime());
 }
 
 externalCause(ctxf, data) {
-    emit("externalCause", ctxf.ctx, generateNextTime(), data);
-}
-
-completed(ctxf) {
-    emit("completed", ctxf.ctx, generateNextTime());
+    emit("externalCause", ctxf.causeCtx, generateNextTime(), data);
 }
 
 failed(ctxf) {
-    emit("fail", ctxf.ctx, generateNextTime());
+    emit("fail", generateNextTime());
 }
 
 rejected(ctxf) {
-    emit("rejected", ctxf.ctx, generateNextTime());
+    emit("rejected", generateNextTime());
 }
 ```
 
-A `completed asynchronous execution` is one in which **TODO**
+A `cancel` event is emitted when a cancellable callback, such as one 
+registered with SetInterval is explicitly canceled, or when a listener such 
+as on a file stream is implicitly canceled via channel termination or GC 
+collection. The `cancel` event notifies us that we will never observe 
+another event related to the `linkCtx` of the associated callback.
 
-A `canceled asynchronous execution` is one in which **TODO**
+An `externalCause` event is emitted as part of a handling a callback that 
+depends on external inputs, in addition to internal execution, to be caused. 
+Examples include File and Network IO callbacks that need to be both `caused` 
+by registering them **and** by external data arriving to trigger their 
+execution. These entries provide additional context on this external data, 
+included in the `data` component of the message.
 
-A `failed asynchronous execution` is one in which **TODO**
+A `failed` event is emitted when a callback throws an uncaught exception 
+during its execution which will result in either a rejection for a promise 
+based ...
 
 A `rejected asynchronous execution` is one in which **TODO**
 
