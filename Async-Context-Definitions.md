@@ -420,12 +420,12 @@ is for less universaly relevant data or data that is expensive to capture.
    - **TODO** other info?
 
 ## Enriched Terminology
-The definitions in the "Terminology" section provide basic asynchronous 
+The definitions in the _Terminology_ section provide basic asynchronous 
 lifecycle events but do not capture many important features including, 
-canceled or failed rejections and, in cases of asynchronous events that 
+canceled events or failed rejections and, in cases of asynchronous events that 
 depend on environmental interaction, what external events may be relevant.
 
-To address these
+To address these ...
 ```
 cancel(ctxf) {
     emit("cancel", ctxf.ctx, generateNextTime());
