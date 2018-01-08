@@ -247,6 +247,7 @@ We will see the asynchronous trace:
 Similarly we can provide a basic promise API that supports asynchronous 
 context tracking by modifying the real promise implementation as follows: 
 **TODO** this is super rough.
+
 ```
 function then(onFulfilled, onRejected) {
     cfFulfilled = contextify(onFulfilled);
@@ -437,12 +438,17 @@ externalCause(ctxf, data) {
     emit("externalCause", ctxf.causeCtx, generateNextTime(), data);
 }
 
-failed(ctxf) {
-    emit("fail", generateNextTime());
+failed(ctxf, reason) {
+    emit("fail", reason, generateNextTime());
 }
 
-rejected(ctxf) {
-    emit("rejected", generateNextTime());
+rejected(ctxf, reason, isException) {
+    ctxf.rejection = currentExecutingContext;
+    emit("rejected", reason, isException, generateNextTime());
+}
+
+unhandledReject(ctxf) {
+    emit("rejected", ctxf.rejection, generateNextTime());
 }
 ```
 
@@ -460,13 +466,21 @@ execution. These entries provide additional context on this external data,
 included in the `data` component of the message.
 
 A `failed` event is emitted when a callback throws an uncaught exception 
-during its execution which will result in either a rejection for a promise 
-based ...
+during its execution which results in an unhandled exception.
 
-A `rejected asynchronous execution` is one in which **TODO**
+A `rejected` event is emitted when an [asynchronously executed]? promise 
+rejects and includes if the rejection was the result of an exception or 
+explicit reject.
 
-A `rejected and unhandled asynchronous execution` is one in which **TODO**
+An `unhandled rejection` event is emitted when an [asynchronously executed]? 
+promise rejects and is not handled within a turn of the event loop as per Node [semantics](https://nodejs.org/api/process.html#process_event_unhandledrejection).
 
+**TODO** I think promise handling described here will miss something like a 
+naked `Promise.reject("nothing")` call which is an unhandled rejection but 
+just doesn't involve any asynchronous behavior. So, we may want to include 
+synchronous promise creation/execution somehow if this is important to us. 
+I think this just gets kicked back to sequential execution analysis but 
+may be worth discussing.
 
 Using the these definitions we can define the following states of an 
 asynchronous execution:
