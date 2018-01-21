@@ -411,11 +411,14 @@ timestamps in their logging.
 The other core metadata we track split it into two classes `standard` and 
 `detailed`. The `standard` data is intended to include information that is 
 nearly universally useful and low cost to gather while the `detailed` class 
-is for less universaly relevant data or data that is expensive to capture.
+is for less universally relevant data, while the `expensive` class is for 
+data that is expensive to capture.
  * Standard:
    - Source/Line info for applicable events.
    - **TODO** other info?
  * Detailed:
+   - **TODO** other info?
+ * Expensive:
    - Callstack info the applicable events.
    - **TODO** other info?
 
