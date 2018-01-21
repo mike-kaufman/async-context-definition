@@ -62,26 +62,25 @@ we begin by defining an _asynchronous function context_ (or context) as a
 unique identifier. We only require that fresh instances of these 
 values can be generated on demand and compared for equality. In practice 
 monotonically increasing integer values provide a suitable representation.
-For a given function _f_ we define the asynchronous context representation 
-of _f_ in context _i_ as _f<sub>i</sub>_. 
 
 Our definitions of asynchronous executions are based on four 
 binary relations over the executions of logically asynchronous JavaScript 
 functions:
- - **execution** -- when a function _f_ is executed we create a unique 
- fresh context for it _c_ and use this as the `execution` context for 
- asynchronous events that happen during the execution of _f_.
- - **link** -- when the execution of function _f_ in context _i_ stores a 
- second function _g_ in context _j_ for later asynchronous execution we say 
- _f<sub>i</sub>_ `links` _g<sub>j</sub>_. 
- - **causal** -- when the execution of a function _f_ in context _i_ is 
- logically responsible (according to the `host` API) 
- for causing the execution of a previously **linked** _g_ from context _j_ 
- we say _f<sub>i</sub>_ `causes` _g<sub>j</sub>_. 
- - **happens before** -- when a function _f_ with execution context _i_ 
- is asynchronously executed before a second function _g_ with execution 
- context _j_ then _i_ < _j_ and we say _f<sub>i</sub>_ `happens before` 
- _g<sub>j</sub>_.
+ - **execution** -- when a function _f_ is executed as an asynchronous 
+ invocation we create a unique fresh context for it _c_ and use this as the 
+ `execution` context for asynchronous events that happen during the execution 
+ of _f_.
+ - **link** -- when the asynchronous execution of function _f_ in context _i_ 
+ stores a second function _g_ in context _j_ for later asynchronous execution 
+ we say _f_ in context _i_ `links` _g_ with context _j_. 
+ - **causal** -- when the asynchronous execution of a function _f_ in context 
+ _i_ is logically responsible (according to the `host` API) for causing the 
+ asynchronous execution of a previously **linked** _g_ from context _j_ we say 
+ _f_ in context _i_ `causes` _g_ with context _j_. 
+ - **happens before** -- when the asynchronous function _f_ with execution 
+ context _i_ is asynchronously executed before a second asynchronous function 
+ _g_ with execution context _j_ then _i_ < _j_ and we say _f_ in context _i>_
+ `happens before` _g_ in context _j_.
 
 We define the following module code that provides the required functions to
 explicitly mark API's that expose asynchronous behavior from `host` code to 
