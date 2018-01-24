@@ -593,6 +593,10 @@ Error
 
 ## 6. Examples
 
+### Simple Promise
+
+See the [examples/simplePromise/slideShow/async-context.html](slideshow).
+
 ### Promise.All
 
 ### Promise with unhandled rejection
