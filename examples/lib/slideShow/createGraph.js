@@ -37,11 +37,24 @@ function addEdge(g, v1, v2) {
     g.addEdge(n1, n2);
 }
 
+const jsavCode = jsav.code(codeLines);
+
 function processNodes(records, g) {
 
     let currentExecutionID = -1;
+    let currentHighlightLine = undefined;
     for (let i = 0; i < records.length; i++) {
         const r = records[i];
+
+         // handle code highlighting
+         if (r.data && r.data.highlightLine !== undefined) {
+            if (currentHighlightLine > 0) {
+                jsavCode.unhighlight(currentHighlightLine);
+            }
+            jsavCode.highlight(r.data.highlightLine);
+            currentHighlightLine = r.data.highlightLine;
+         }
+
         switch (r.event) {
             case 'executeBegin':
                 currentExecutionID = r.executeID;

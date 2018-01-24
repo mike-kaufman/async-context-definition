@@ -27,46 +27,17 @@
       font-size: 2em;
       text-align: center;
     }
-    .codeDiv {
-      display:inline-block;
-      width:30%;
-      height: 100%;
-      font-family:"Courier New", Courier, monospace;
-    }
-    .graphDiv{
-      float:right;
-      width:70%;
-      height: 100%;
-    }
-
     </style>
   </head>
   <body>
     <h1>Async Context Visualization - simplePromise</h1>
-    <div id="rootdiv">
-      <div id="codeContainer" class="codeDiv">
-        <p>Code Example:</p>
-      <pre>
-      <code>
-          <span>lib = require('../lib/lib')</span>
-          <span>lib.output('starting');</span>
-          const p = new Promise((resolve, reject) => {
-                  setTimeout(() => {
-                      lib.output('resolving promise in timeout');
-                      resolve(true);
-             }, 100);
-           }).then((v) => {
-              lib.output('in "then": ' + v);
-           });
-      </code>
-    </pre>
+    <div>
+      <div id="codecontainer">
       </div>
-      <div class="graphDiv">
-      <div id="av" class="graphDiv">
+      <div id="av">
         <div class="jsavcontrols"></div><span class="jsavcounter"></span>
         <p class="jsavoutput jsavline"></p>
     </div>
-  </div>
   </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>

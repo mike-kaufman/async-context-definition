@@ -1,11 +1,11 @@
 ah = require('../../lib/node/ah');
 lib = require('../../lib/node/lib')
-lib.output('starting');
+lib.output('AAA');
 const p = new Promise((resolve, reject) => {
         setTimeout(() => {
-            lib.output('resolving promise in timeout');
+            lib.output('BBB');
             resolve(true);
         }, 100);
     }).then((v) => {
-  lib.output('in "then": ' + v);
+  lib.output('CCC');
 });
