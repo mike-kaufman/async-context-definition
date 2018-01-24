@@ -594,8 +594,23 @@ Error
 ## 6. Examples
 
 ### Simple Promise
+Code Example:
+```javascript
+lib = require('../../lib/node/lib')
+lib.output('AAA');
+const p = new Promise((resolve, reject) => {
+        setTimeout(() => {
+            lib.output('BBB');
+            resolve(true);
+        }, 100);
+    }).then((v) => {
+  lib.output('CCC');
+});
+```
 
-See the [slideshow](examples/simplePromise/slideShow/async-context.html).
+See the slideshow:
+  - [raw html](examples/simplePromise/slideShow/async-context.html).
+  - [rendered](http://htmlpreview.github.io/examples/simplePromise/slideShow/async-context.html)
 
 ### Promise.All
 
