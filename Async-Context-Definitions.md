@@ -595,7 +595,7 @@ Error
 
 ### Simple Promise
 
-See the [examples/simplePromise/slideShow/async-context.html](slideshow).
+See the [slideshow](examples/simplePromise/slideShow/async-context.html).
 
 ### Promise.All
 
