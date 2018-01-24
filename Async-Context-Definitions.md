@@ -610,7 +610,7 @@ const p = new Promise((resolve, reject) => {
 
 See the slideshow:
   - [raw html](examples/simplePromise/slideShow/async-context.html).
-  - [rendered](http://htmlpreview.github.io/examples/simplePromise/slideShow/async-context.html)
+  - [rendered](http://htmlpreview.github.io?examples/simplePromise/slideShow/async-context.html)
 
 ### Promise.All
 
