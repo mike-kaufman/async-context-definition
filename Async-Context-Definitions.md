@@ -593,6 +593,25 @@ Error
 
 ## 6. Examples
 
+### Simple Promise
+Code Example:
+```javascript
+lib = require('../../lib/node/lib')
+lib.output('AAA');
+const p = new Promise((resolve, reject) => {
+        setTimeout(() => {
+            lib.output('BBB');
+            resolve(true);
+        }, 100);
+    }).then((v) => {
+  lib.output('CCC');
+});
+```
+
+See the slideshow:
+  - [raw html](examples/simplePromise/slideShow/async-context.html).
+  - [rendered](http://htmlpreview.github.io?https://github.com/mike-kaufman/async-context-definition/blob/mkaufman-example-slide-show-checkpoint/examples/simplePromise/slideShow/async-context.html)
+
 ### Promise.All
 
 ### Promise with unhandled rejection
