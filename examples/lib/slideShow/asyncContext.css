@@ -25,7 +25,12 @@
 
 .causeNode {
     border-style: dashed;
-  }
+    background-color: 	#FFD700;
+}
+
+.linkNode {
+    background-color:	#F0FFFF;
+}
 
 .outputNode {
   background-color: #00FFFF;
