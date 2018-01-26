@@ -87,49 +87,50 @@ We define the following module code that provides the required functions to
 explicitly mark API's that expose asynchronous behavior from `host` code to 
 `client` code and which enable the tracking of the core asynchronous execution 
 concepts.
-```
+```js
 let globalCtxCtr = 0;
-generateFreshContext() {
+function generateNextContextID() {
   return ++globalCtxCtr;
 }
 
 let globalTimeCtr = 0;
-generateNextTime() {
+function generateNextTime() {
   return ++globalTimeCtr;
 }
 
-let currentExecutingContext = "root";
+// initialize to "root context" of 0
+let currentExecutingContext = 0;
 
-link(f) {
-  const linkCtx = generateFreshContext();
-  emit("link", linkCtx, generateNextTime());
-
-  return { function: f, link: linkCtx };
+function emit(obj) {
+  console.log(JSON.stringify(obj));
 }
 
-cause(ctxf) {
-  const causeCtx = generateFreshContext();
-  emit("cause", ctxf.link, causeCtx, generateNextTime());
+function link(f) {
+  const linkID = generateNextContextID();
+  emit({event: "link", executeID: currentExecutingContext, linkID});
 
-  return Object.assign(ctxf, { cause: causeCtx });
+  return { function: f, linkID };
 }
 
-execute(ctxf) {
+function cause(ctxf) {
+  const causeID = generateNextContextID();
+  emit({event: "cause", executeID: currentExecutingContext, linkID: ctxf.linkID, causeID });
+
+  return Object.assign(ctxf, { causeID });
+}
+
+function execute(ctxf) {
   const origCtx = currentExecutingContext;
-  currentExecutingContext = { 
-    link: ctxf.link, 
-    cause: ctxf.cause, 
-    execution: generateFreshContext() 
-  };
+  currentExecutingContext = generateNextContextID();
 
-  emit("executeBegin", currentExecutingContext, generateNextTime());
+  emit({event: "executeBegin", executeID: currentExecutingContext, causeID: ctxf.causeID});
 
   let res = undefined;
   try {
     res = ctxf.function.call(null);
   }
   finally {
-    emit("executeEnd", currentExecutingContext, generateNextTime());
+    emit({event: "executeEnd", executeID: currentExecutingContext});
     currentExecutingContext = origCtx;
   }
 
@@ -176,7 +177,7 @@ the promise API.
 ### Callback API
 For this example we start with a simple asynchronous API that defines 
 two method for registering callbacks:
-```
+```js
 let worklist = [];
 setInterval(() => {
   const wl = worklist;
@@ -184,7 +185,7 @@ setInterval(() => {
   wl.forEach((entry) => {
     execute(entry.task);
     if(entry.isRepeat) {
-      workist.push(entry);
+      worklist.push(entry);
     }
   });
 }, 500);
@@ -198,57 +199,61 @@ function callbackOnce(f) {
 //Invoke the callback REPEATEDLY asynchronously on later turns of event loop
 function callbackRepeating(f) {
   const cf = cause(link(f));
-  callbackOnce({task: cf, isRepeat: true});
+  worklist.push({task: cf, isRepeat: true});
 }
 ```
 This example shows how the use of the core asynchronous module code delineates 
 the points at which logical linking and causal context are captured or 
 propagated. If we invoke this API as follows (when the currentContext is 0):
-```
-callbackRepeating(() => console.log("Hello Repeating"));
+```js
+callbackRepeating(() => console.log("// Hello Repeating"));
 
 let doit = true;
 callbackOnce(() => {
-  console.log("Hello Once") 
+  console.log("// Hello Once") 
   if(doit) {
     doit = false;
-    callbackOnce(() => console.log("Did it"));
+    callbackOnce(() => console.log("// Did it"));
   }
 });
 ```
 We will see the asynchronous trace:
-```
-  {event: "executeBegin", current: "root", time: 1}
-  {event: "link", link: 3, time: 2}
-  {event: "cause", link: 3, cause: 4, time: 3}
-  {event: "link", link: 5, time: 4}
-  {event: "cause", link: 5, cause: 6, time: 5}
-  {event: "executeBegin", current: { link: 3, cause: 4, execution: 7 }, time: 6}
-  //Prints "Hello Repeating"
-  {event: "executeEnd", current: { link: 3, cause: 4, execution: 7 }, time: 7}
-  {event: "executeBegin", current: { link: 5, cause: 6, execution: 8 }, time: 8}
-  //Prints "Hello Once"
-  {event: "link", link: 9, time: 9}
-  {event: "cause", link: 9, cause: 10, time: 10}
-  {event: "executeEnd", current: { link: 5, cause: 6, execution: 8 }, time: 11}
-  {event: "executeBegin", current: { link: 3, cause: 4, execution: 11 }, time: 12}
-  //Prints "Hello Repeating"
-  {event: "executeEnd", current: { link: 3, cause: 4, execution: 11 }, time: 13}
-  {event: "executeBegin", current: { link: 9, cause: 10, execution: 12 }, time: 14}
-  //Prints "Did it"
-  {event: "executeEnd", current: { link: 9, cause: 10, execution: 12 }, time: 15}
-  {event: "executeBegin", current: { link: 3, cause: 4, execution: 13 }, time: 16}
-  //Prints "Hello Repeating"
-  {event: "executeEnd", current: { link: 3, cause: 4, execution: 13 }, time: 17}
+```json
+{"event":"link","executeID":0,"linkID":1}
+{"event":"cause","executeID":0,"linkID":1,"causeID":2}
+{"event":"link","executeID":0,"linkID":3}
+{"event":"cause","executeID":0,"linkID":3,"causeID":4}
+{"event":"executeBegin","executeID":5,"causeID":2}
+// Hello Repeating
+{"event":"executeEnd","executeID":5}
+{"event":"executeBegin","executeID":6,"causeID":4}
+// Hello Once
+{"event":"link","executeID":6,"linkID":7}
+{"event":"cause","executeID":6,"linkID":7,"causeID":8}
+{"event":"executeEnd","executeID":6}
+{"event":"executeBegin","executeID":9,"causeID":2}
+// Hello Repeating
+{"event":"executeEnd","executeID":9}
+{"event":"executeBegin","executeID":10,"causeID":8}
+// Did it
+{"event":"executeEnd","executeID":10}
+{"event":"executeBegin","executeID":11,"causeID":2}
+// Hello Repeating
+{"event":"executeEnd","executeID":11}
+{"event":"executeBegin","executeID":12,"causeID":2}
+// Hello Repeating
+{"event":"executeEnd","executeID":12}
   ...
 ```
+
+See a visualization of the above event stream [here](./markdown-example-1/slideShow/async-context.html);
 
 ### Promise API
 Similarly we can provide a basic promise API that supports asynchronous 
 context tracking by modifying the real promise implementation as follows: 
 **TODO** this is super rough.
 
-```
+```js
 function then(onFulfilled, onRejected) {
     cfFulfilled = contextify(onFulfilled);
     link(cfFulfilled);
@@ -279,7 +284,7 @@ function reject(value) {
 }
 ```
 If we invoke this API as follows (when the currentContext is 0):
-```
+```js
 const p = new Promise((res) => {
   console.log("Promise p");
   callbackOnce(() => {
@@ -294,22 +299,26 @@ p.then((val) => {
 });
 ```
 We will see the asynchronous trace:
-```
-  {event: "executeBegin", current: "root", time: 1}
+```json
+  {"event": "executeBegin", "executeID": "0" }
   //Prints "Promise P"
-  {event: "link", link: 3, time: 2}
-  {event: "cause", link: 3, cause: 4, time: 3}
+  {"event": "link", "executeID":0,"linkID":1}
+  {"event": "cause", "executeID":0, "linkID": 1, "causeID": 2}
   //Prints "Promise then"
-  {event: "link", link: 5, time: 4}
-  {event: "executeBegin", current: { link: 3, cause: 4, execution: 6 }, time: 5}
+  {"event": "link",  "executeID":0, "linkID": 3}
+  {"event": "executeEnd", "executeID": "0" }
+  //{event: "executeBegin", current: { link: 3, cause: 4, execution: 6 }, time: 5}
+  {"event":"executeBegin","executeID":4,"causeID":2}
   //Prints "Promise resolve"
-  {event: "cause", link: 5, cause: 7, time: 6}
-  {event: "executeEnd", current: { link: 3, cause: 4, execution: 6 }, time: 7}
-  {event: "executeBegin", current: { link: 5, cause: 7, execution: 8 }, time: 8}
+  {"event": "cause", "executeID": 4, "linkID": 3, "causeID": 5}
+  {"event": "executeEnd", "executeID": 4}
+  {"event": "executeBegin", "executeID": 6, "causeID": 5}
   //Prints "Hello 42 World!"
-  {event: "executeEnd", current: { link: 5, cause: 7, execution: 8 }, time: 9}
-  {event: "executeEnd", current: "root", time: 16}
+  {"event": "executeEnd", "executeID": 6}
 ```
+
+See a visualization of the above event stream [here](./markdown-example-2/slideShow/async-context.html); 
+
 These two examples show how the the context relations from 
 [DLS17](https://www.microsoft.com/en-us/research/wp-content/uploads/2017/08/NodeAsyncContext.pdf) 
 can be lifted into the Node ecosystem without the use of the _priority promise_ 
