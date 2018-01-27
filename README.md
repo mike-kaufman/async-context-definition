@@ -16,9 +16,9 @@ and Javascript developers.
 Javascript is a single-threaded language, which simplifies many things.  To prevent blocking IO, 
 operations are pushed onto the background and associated with callback functions written in javascript.
 When IO operations complete, the callback is pushed onto a queue for execution by Node's "event loop". 
-This is explained in mroe detail [here](https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/). 
+This is explained in more detail [here](https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/). 
 
-This model has many benefits, but one of the key challenges is maintaing "context" when
+While this model has many benefits, one of the key challenges is maintaing "context" when
 asynchronous callbacks are invoked.  The papers above describe "asynchronous context" in a much more 
 rigorous way, but for our purposes, we'll think of "asynchronous context" as the ability to answer, at any given point in program
 execution, "what was the path of asynchronous functions that got me here".
@@ -66,7 +66,7 @@ Given our model, this would produce the following event stream:
 ```
 
 ## Events Produce the Async Call Graph
-The events above allow us to produce a Directed Acyclic Graph [DAG](https://en.wikipedia.org/wiki/Directed_acyclic_graph) 
+The events above allow us to produce a Directed Acyclic Graph ([DAG](https://en.wikipedia.org/wiki/Directed_acyclic_graph))
 that we call the "Async Call Graph".  Specifically, the `executeBegin`, `cause` and `link` events correspond to node & edge
 creation in the graph.
 
