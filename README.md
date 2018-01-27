@@ -3,10 +3,9 @@
 This is an effort to formalize & visualize "asynchronous context" in Node.js applications.
 
 The content here is a "simple summary" of more in-depth work, namely 
-1. A [DLS 2017](http://2017.splashcon.org/)
-[paper](https://www.microsoft.com/en-us/research/wp-content/uploads/2017/08/NodeAsyncContext.pdf) that formally 
+1. A [DLS 2017 paper](https://www.microsoft.com/en-us/research/wp-content/uploads/2017/08/NodeAsyncContext.pdf) that formally 
 defines semantics of async execution in javascript
-2.  A "translation" of the above concepts to Node.js, without the academic assumptions & formalisms, is [here](./Async-Context-Definitions.md). (*WIP*)
+2.  A ["translation"](./Async-Context-Definitions.md) of the above concepts, without the academic assumptions & formalisms. (*WIP*)
 
 This page is a companion to the above.  The intention is to easily bring an
 understanding of the asynchronous execution model formally defined above to a wide audience of Node.js 
