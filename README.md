@@ -1,4 +1,4 @@
-# h1  Node.js Async Context Definitions
+# Node.js Async Context Definitions
 
 This is an effort to formalize & visualize "asynchronous context" in Node.js applications.
 
@@ -66,7 +66,7 @@ Given our model, this would produce the following event stream:
 {"event": "executeEnd", "executeID": 6 } // callback f1() is ending
 ```
 
-## Events product a Directed Acyclic Graph (DAG)
+## Events Produce the Async Call Graph
 The events above allow us to produce a Directed Acyclic Graph [DAG](https://en.wikipedia.org/wiki/Directed_acyclic_graph) 
 that we call the "Async Call Graph".  Specifically, the `executeBegin`, `cause` and `link` events correspond to node & edge
 creation in the graph.
