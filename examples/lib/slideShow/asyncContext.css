@@ -1,0 +1,37 @@
+#av {
+    width: 98%;
+    position: relative;
+  }
+  .jsavcounter {
+    position: absolute;
+    top: 15px;
+  }
+  .jsavcanvas { height: 300px;}
+  .jsavlabel {
+    font-size: 2em;
+    text-align: center;
+  }
+
+.activeExecutionNode {
+    background-color:#009933;
+    border-color: black;
+    color: white;
+  }
+.completedExecutionNode {
+    background-color: black;
+    border-color: black;
+    color: white;
+  }
+
+.causeNode {
+    border-style: dashed;
+    background-color: 	#FFD700;
+}
+
+.linkNode {
+    background-color:	#F0FFFF;
+}
+
+.outputNode {
+  background-color: #00FFFF;
+}
