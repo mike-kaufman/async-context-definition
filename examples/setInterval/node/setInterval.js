@@ -11,7 +11,7 @@ const interval = setInterval(() => {
     }).then(() => {
         console.log(`then'd iteration ${myIteration}`);
     });
-    if (counter === 3) {
+    if (counter === 2) {
         console.log(`clearing interval`);
         clearInterval(interval);
     }
