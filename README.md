@@ -76,4 +76,4 @@ This all much easier to visualize.  We have a list of examples along with step-t
  - [simplePromise](./examples/simplePromise/slideShow/async-context.html) - Shows a simple promise example's execution.
  - [simpleExpress](./examples/simpleExpress/slideShow/async-context.html) - Shows a simple express app's execution.
  - [setInterval](./examples/setInterval/slideShow/async-context.html) - Illustrates a call to setInterval.
-
+ - [lazilyInitializedPromise](./examples/lazilyInitializedPromise/slideShow/async-context.html) - Illustrates an express app with a promise that is created & resolved in one request's context, and "then'd" in other requests' context.
