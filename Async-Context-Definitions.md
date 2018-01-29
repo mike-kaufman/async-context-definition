@@ -307,7 +307,6 @@ We will see the asynchronous trace:
   //Prints "Promise then"
   {"event": "link",  "executeID":0, "linkID": 3}
   {"event": "executeEnd", "executeID": "0" }
-  //{event: "executeBegin", current: { link: 3, cause: 4, execution: 6 }, time: 5}
   {"event":"executeBegin","executeID":4,"causeID":2}
   //Prints "Promise resolve"
   {"event": "cause", "executeID": 4, "linkID": 3, "causeID": 5}
