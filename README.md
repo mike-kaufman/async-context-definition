@@ -74,3 +74,6 @@ creation in the graph.
 This all much easier to visualize.  We have a list of examples along with step-through visualizations:
 
  - [simplePromise](./examples/simplePromise/slideShow/async-context.html) - Shows a simple promise example's execution.
+ - [simpleExpress](./examples/simpleExpress/slideShow/async-context.html) - Shows a simple express app's execution.
+ - [setInterval](./examples/setInterval/slideShow/async-context.html) - Illustrates a call to setInterval.
+
