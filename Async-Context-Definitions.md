@@ -245,7 +245,7 @@ We will see the asynchronous trace:
   ...
 ```
 
-See a visualization of the above event stream [here](./markdown-example-1/slideShow/async-context.html);
+See a visualization of the above event stream [here](https://mike-kaufman.github.io/async-context-definition/examples/markdown-example-1/slideShow/async-context.html)
 
 ### Promise API
 Similarly we can provide a basic promise API that supports asynchronous 
@@ -315,7 +315,7 @@ We will see the asynchronous trace:
   {"event": "executeEnd", "executeID": 6}
 ```
 
-See a visualization of the above event stream [here](./markdown-example-2/slideShow/async-context.html); 
+See a visualization of the above event stream [here](https://mike-kaufman.github.io/async-context-definition/examples/markdown-example-2/slideShow/async-context.html)
 
 These two examples show how the the context relations from 
 [DLS17](https://www.microsoft.com/en-us/research/wp-content/uploads/2017/08/NodeAsyncContext.pdf) 
@@ -604,6 +604,8 @@ Error
 ## 6. Examples
 
 ### Simple Promise
+See the [slideshow](https://mike-kaufman.github.io/async-context-definition/examples/simplePromise/slideShow/async-context.html)
+
 Code Example:
 ```javascript
 lib = require('../../lib/node/lib')
@@ -618,12 +620,13 @@ const p = new Promise((resolve, reject) => {
 });
 ```
 
-See the slideshow:
-  - [raw html](examples/simplePromise/slideShow/async-context.html).
-  - [rendered](http://htmlpreview.github.io?https://github.com/mike-kaufman/async-context-definition/blob/mkaufman-example-slide-show-checkpoint/examples/simplePromise/slideShow/async-context.html)
-
 ### Promise.All
 
 ### Promise with unhandled rejection
 
 ### Callback w/ user space Queueing
+
+## 7. Open Questions
+1.  Do we need events for when promises are created?  This would allow model to identify any pending promises.
+2.  Do we need events/nodes for when promises are resolved and/or rejected?  (see 3 below for why a "cause" event is different from a "resolve" event).
+3.  Currently, if you link on a resolved promise, the model has the "cause" event firing immediately.  This means there's no way to traverse from a currently resolved promise to where that promise was actually resolved. Do we need a link from the cause event to a "resolve"/"reject" event?
