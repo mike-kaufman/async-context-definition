@@ -250,7 +250,8 @@ See a visualization of the above event stream [here](https://mike-kaufman.github
 ### Promise API
 Similarly we can provide a basic promise API that supports asynchronous 
 context tracking by modifying the real promise implementation as follows: 
-**TODO** this is super rough.
+
+**TODO** this needs to be checked carefully.
 
 ```js
 function then(onFulfilled, onRejected) {
@@ -402,10 +403,50 @@ and the top of the desired long call-stack.
 
 **TODO** add an example with sample code etc.
 
+## Asynchronous Object Lifecycle
+In addition to the asynchronous execution behavior of an application we are 
+often interested in the lifecyle events of the objects, such as promises or 
+event emitters, involved in this asynchronous execution. While this information 
+is critical for some applications it can be expensive to compute and is not 
+universally required. Thus, we seperate the tracking of this information out 
+into a seperate category and provide the following emit events which can be 
+optionally enabled.
+```js
+function createPromise(pobj) {
+    ...;
+}
+function resolvePromise(pobj) {
+    ...;
+}
+function rejectPromise(pobj, reason) {
+    ...;
+}
+function disposePromise(pobj) {
+    ...;
+}
+function unhandledReject(pobj) {
+    ...;
+}
+function createEmitter(e) {
+    ...;
+}
+function disposeEmitter(e) {
+    ...;
+}
+```
+**TODO** fill in more detail here.
+
+A `rejected` event is emitted when a promise rejects and includes if the 
+rejection was the result of an exception or explicit reject.
+
+An `unhandled rejection` event is emitted when an [asynchronously executed]? 
+promise rejects and is not handled within a turn of the event loop as per Node [semantics](https://nodejs.org/api/process.html#process_event_unhandledrejection).
+
 ## Asynchronous Operation Metadata
 In the previous sections we focused solely on tracking and emitting 
 information on the structure of the asynchronous call graph. However, most 
-applications, including our samples above, are interested in more than just the raw structure of this graph. While we cannot, and would not want to, identify 
+applications, including our samples above, are interested in more than just the 
+raw structure of this graph. While we cannot, and would not want to, identify 
 all possible data that could be needed and write it out to our log we can 
 (1) select core of commonly useful information to include and (2) add a timestamp 
 that is shared with user logging code to allow the correlation of custom user 
@@ -439,26 +480,17 @@ depend on environmental interaction, what external events may be relevant.
 To support scenarios that require this type of information we extend the vocabulary 
 of events recorded in the asynchronous execution trace with the following hooks:
 
-```
-cancel(ctxf) {
+```js
+function cancel(ctxf) {
     emit("cancel", ctxf.linkCtx, generateNextTime());
 }
 
-externalCause(ctxf, data) {
+function externalCause(ctxf, data) {
     emit("externalCause", ctxf.causeCtx, generateNextTime(), data);
 }
 
-failed(ctxf, reason) {
-    emit("fail", reason, generateNextTime());
-}
-
-rejected(ctxf, reason, isException) {
-    ctxf.rejection = currentExecutingContext;
-    emit("rejected", reason, isException, generateNextTime());
-}
-
-unhandledReject(ctxf) {
-    emit("rejected", ctxf.rejection, generateNextTime());
+function failedCallback(...) {
+    ...;
 }
 ```
 
@@ -475,22 +507,8 @@ by registering them **and** by external data arriving to trigger their
 execution. These entries provide additional context on this external data, 
 included in the `data` component of the message.
 
-A `failed` event is emitted when a callback throws an uncaught exception 
-during its execution which results in an unhandled exception.
-
-A `rejected` event is emitted when an [asynchronously executed]? promise 
-rejects and includes if the rejection was the result of an exception or 
-explicit reject.
-
-An `unhandled rejection` event is emitted when an [asynchronously executed]? 
-promise rejects and is not handled within a turn of the event loop as per Node [semantics](https://nodejs.org/api/process.html#process_event_unhandledrejection).
-
-**TODO** I think promise handling described here will miss something like a 
-naked `Promise.reject("nothing")` call which is an unhandled rejection but 
-just doesn't involve any asynchronous behavior. So, we may want to include 
-synchronous promise creation/execution somehow if this is important to us. 
-I think this just gets kicked back to sequential execution analysis but 
-may be worth discussing.
+A `failedCallback` event is emitted when a callback throws an uncaught 
+exception during its execution which results in an unhandled exception.
 
 Using the these definitions we can define the following states of an 
 asynchronous execution:
