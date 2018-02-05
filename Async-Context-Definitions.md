@@ -412,39 +412,128 @@ universally required. Thus, we seperate the tracking of this information out
 into a seperate category and provide the following emit events which can be 
 optionally enabled.
 ```js
+const idGen = 1;
+const idMap = new WeakMap();
+function createId(obj) {
+  idMap.set(obj, idGen++);
+}
+
+function getId(obj) {
+  return idMap.get(obj);    
+}
+
 function createPromise(pobj) {
-    ...;
+  createId(pobj);
+  emit("createPromise", getId(pobj), generateNextTime());
 }
+
 function resolvePromise(pobj) {
-    ...;
+  emit("resolvePromise", getId(pobj), generateNextTime());
 }
+
 function rejectPromise(pobj, reason) {
-    ...;
+  emit("rejectPromise", getId(pobj), reason, generateNextTime());
 }
-function disposePromise(pobj) {
-    ...;
+
+function disposePromise(pobj, unhandled) {
+  emit("disposePromise", getId(pobj), unhandled, generateNextTime());
 }
-function unhandledReject(pobj) {
-    ...;
-}
+
 function createEmitter(e) {
-    ...;
+  createId(e);
+  emit("createEmitter", getId(e), generateNextTime());
 }
+
 function disposeEmitter(e) {
-    ...;
+  emit("disposeEmitter", getId(e), generateNextTime());
 }
 ```
-**TODO** fill in more detail here.
 
-A `rejected` event is emitted when a promise rejects and includes if the 
-rejection was the result of an exception or explicit reject.
+We first need a way to track the identity of promise and event emitter objects. 
+As a reference implementation we can use a `WeakMap` and a mechanism for 
+generating fresh ids (a monotinically increasing counter). However, JavaScript 
+engines, with knowledge of underlying object representation and GC systems, can 
+provide optimized implementations of this function. For example in runtimes with 
+non-moving collectors the underlying pointer address of an object is a suitable 
+and efficiently computable identifier.
 
-An `unhandled rejection` event is emitted when an [asynchronously executed]? 
-promise rejects and is not handled within a turn of the event loop as per Node [semantics](https://nodejs.org/api/process.html#process_event_unhandledrejection).
+A `create promise` event is emitted when a promise object is constructed, 
+`Promise.reject`, `Promise.resolve`, or `new Promise`. This starts the 
+tracking of the lifecycle of the newly created promise.
+
+A `resolve promise` event is emitted when a promise object is transitioned 
+from the pending state into the resolved state. For `Promise.resolve` this 
+happens immediately after the `create promise` event.
+
+A `rejected promise` event is emitted when a promise object is transitioned 
+from the pending state into the resolved state. For `Promise.reject` this 
+happens immediately after the `create promise` event. Since a promise can 
+reject for several reasons, created as a reject, explicitly rejected, or 
+uncaught exception, this message also includes the cause information.
+
+A `dispose promise` event is emitted when a promise object will never be 
+involved in any other asynchronous execution. If the promise has an unhandled 
+reject then we include this unhandled rejection information. This event will 
+always be emitted before the underlying object is collected but, if the 
+runtime/compiler can determine in advance that the promise is semantically 
+dead from an asynch viewpoint then this message can be emitted earlier.
+
+**Note:** This would alter the `unhandled reject` [semantics](https://nodejs.org/api/process.html#process_event_unhandledrejection) 
+which specify a turn of the event loop. 
+
+A `create emitter` event is emitted when an asynchronous event emitter 
+source, http, file, etc. object that can have listners attached to it is 
+created. This starts the tracking of the lifecycle of the newly created 
+emitter.
+
+A `dispose emitter` event is emitted when an emitter object will never be 
+involved in any other asynchronous execution. This event will 
+always be emitted before the underlying object is collected but, if the 
+runtime/compiler can determine in advance that the promise is semantically 
+dead from an asynch viewpoint then this message can be emitted earlier.
+
+## Enriched Terminology
+The definitions in the previous sections provide basic asynchronous execution 
+and lifecycle events but do not capture many important features including, 
+canceled events or, in cases of asynchronous events that 
+depend on environmental interaction, what external events may be relevant.
+
+To support scenarios that require this type of information we extend the vocabulary 
+of events recorded in the asynchronous execution trace with the following hooks:
+```js
+function cancel(ctxf) {
+    emit("cancel", ctxf.linkCtx, ctxf.causeCtx || -1, generateNextTime());
+}
+
+function externalCause(ctxf, data) {
+    emit("externalCause", ctxf.causeCtx, generateNextTime(), data);
+}
+
+function failedCallback(currentExecutingContext) {
+    emit("failedCallback",  currentExecutingContext, generateNextTime());
+}
+```
+
+A `cancel` event is emitted when a cancellable callback, such as one 
+registered with SetInterval is explicitly canceled, or when a listener such 
+as on a file stream is implicitly canceled via channel termination or GC 
+collection. The `cancel` event notifies us that we will never observe 
+another event related to the `linkCtx` of the associated callback.
+
+An `externalCause` event is emitted as part of a handling a callback that 
+depends on external inputs, in addition to internal execution, to be caused. 
+Examples include File and Network IO callbacks that need to be both `caused` 
+by registering them **and** by external data arriving to trigger their 
+execution. These entries provide additional context on this external data, 
+included in the `data` component of the message.
+
+A `failedCallback` event is emitted when a callback throws an uncaught 
+exception during its execution which results in an unhandled exception.
 
 ## Asynchronous Operation Metadata
 In the previous sections we focused solely on tracking and emitting 
-information on the structure of the asynchronous call graph. However, most 
+information on the structure of the asynchronous call graph and asynchronous 
+object lifecycles. However, most 
 applications, including our samples above, are interested in more than just the 
 raw structure of this graph. While we cannot, and would not want to, identify 
 all possible data that could be needed and write it out to our log we can 
@@ -470,52 +559,6 @@ data that is expensive to capture.
  * Expensive:
    - Callstack info the applicable events.
    - **TODO** other info?
-
-## Enriched Terminology
-The definitions in the _Terminology_ section provide basic asynchronous 
-lifecycle events but do not capture many important features including, 
-canceled events or failed rejections and, in cases of asynchronous events that 
-depend on environmental interaction, what external events may be relevant.
-
-To support scenarios that require this type of information we extend the vocabulary 
-of events recorded in the asynchronous execution trace with the following hooks:
-
-```js
-function cancel(ctxf) {
-    emit("cancel", ctxf.linkCtx, generateNextTime());
-}
-
-function externalCause(ctxf, data) {
-    emit("externalCause", ctxf.causeCtx, generateNextTime(), data);
-}
-
-function failedCallback(...) {
-    ...;
-}
-```
-
-A `cancel` event is emitted when a cancellable callback, such as one 
-registered with SetInterval is explicitly canceled, or when a listener such 
-as on a file stream is implicitly canceled via channel termination or GC 
-collection. The `cancel` event notifies us that we will never observe 
-another event related to the `linkCtx` of the associated callback.
-
-An `externalCause` event is emitted as part of a handling a callback that 
-depends on external inputs, in addition to internal execution, to be caused. 
-Examples include File and Network IO callbacks that need to be both `caused` 
-by registering them **and** by external data arriving to trigger their 
-execution. These entries provide additional context on this external data, 
-included in the `data` component of the message.
-
-A `failedCallback` event is emitted when a callback throws an uncaught 
-exception during its execution which results in an unhandled exception.
-
-Using the these definitions we can define the following states of an 
-asynchronous execution:
- * A (sub)tree is in `active asynchronous execution` when there exists a child 
- node, link or causal, that has not completed.
- * A (sub)tree has `retired asynchronous execution` when all child nodes, 
- link of causal, are in the completed state.
 
 ## 5. Use Cases
 Use cases for Async Context can be broken into two categories, **post-mortem** and
