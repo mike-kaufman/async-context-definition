@@ -44,7 +44,7 @@
         return g.addEdge(n1, n2, opts);
     }
 
-    const jsavCode = jsav.code(codeLines);
+    const jsavCode = jsav.code(codeLines, {after: {element: $('#codeAnchor')}});
 
     function processNodes(records, g) {
 
