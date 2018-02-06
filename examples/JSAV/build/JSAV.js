@@ -688,7 +688,7 @@
     return true;
   }
   JSAV.anim = anim;
-  if (localStorage) { // try to fetch a stored setting for speed from localStorage
+  if (typeof localStorage !== 'undefined' && localStorage) { // try to fetch a stored setting for speed from localStorage
     var spd = localStorage.getItem("jsav-speed");
     if (spd) { // if we have a value, it is a string (from localStorage)
       spd = parseInt(spd, 10);
@@ -7770,7 +7770,7 @@ if (typeof Raphael !== "undefined") { // only execute if Raphael is loaded
         JSAV.ext.SPEED = speed;
         //trigger speed change event to update all AVs on the page
         $(document).trigger("jsav-speed-change", speed);
-        if (localStorage) {
+        if (typeof localStorage !== 'undefined' && localStorage) {
           localStorage.setItem("jsav-speed", speed);
         }
       };
