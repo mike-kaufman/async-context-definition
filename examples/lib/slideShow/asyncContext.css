@@ -35,3 +35,16 @@
 .outputNode {
   background-color: #00FFFF;
 }
+
+.container {
+  display: flex;
+}
+
+.codeContainer {
+  width: 30%;
+  height: 100%;
+}
+
+.graphContainer {
+  height: 100%;
+}
