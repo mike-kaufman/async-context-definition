@@ -11,7 +11,7 @@ var records = [
 
     {"event":"executeBegin","executeID":4,"causeID":2, "data": {"highlightLine": 36}},
     {"event":"output","data":{"output":"in f1", "highlightLine": 21}},
-    {"event":"link","executeID":4,"linkID":5,"data":{"type":"app.listen()", "highlightLine": 12}},
+    {"event":"link","executeID":4,"linkID":5,"data":{"type":"setImmediate()", "highlightLine": 12}},
     {"event":"cause","executeID":4,"linkID":5,"causeID":6, "data": {"highlightLine": 12}},
     {"event":"output","data":{"output":"received request 1", "highlightLine": 28}},
     {"event":"link","executeID":4,"linkID":7,"data":{"type":"then()", "highlightLine": 29}},
