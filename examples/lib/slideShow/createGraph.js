@@ -40,27 +40,51 @@
         const n1 = getNode(v1);
         const n2 = getNode(v2);
         opts = opts || {};
-        opts['arrow-end'] = 'classic-wide-long'; /*classic, block, open, oval, diamond, none,*/;
+        opts['arrow-end'] = 'classic-wide-long'; /*classic, block, open, oval, diamond, none,*/ ;
         return g.addEdge(n1, n2, opts);
     }
 
-    const jsavCode = jsav.code(codeLines, {after: {element: $('#codeAnchor')}});
+    // set up code display
+    const jsavCode = jsav.code(codeLines, {
+        after: {
+            element: $('#codeAnchor')
+        }
+    });
+
+    // set up event display
+    const recordsString = records.reduce((accumlator, curr) => {
+        const obj = { ...curr };
+        if (obj.data) {
+            delete obj.data;
+        }
+        return accumlator += JSON.stringify(obj) + '\n';
+    }, '');
+    const jsavEvents = jsav.code(recordsString, {
+        after: {
+            element: $('#eventAnchor')
+        }
+    })
 
     function processNodes(records, g) {
 
         let currentExecutionID = -1;
-        let currentHighlightLine = undefined;
+        let currentCodeHighlightLine = undefined;
         for (let i = 0; i < records.length; i++) {
             const r = records[i];
 
             // handle code highlighting
             if (r.data && r.data.highlightLine !== undefined) {
-                if (currentHighlightLine > 0) {
-                    jsavCode.unhighlight(currentHighlightLine);
+                if (currentCodeHighlightLine > 0) {
+                    jsavCode.unhighlight(currentCodeHighlightLine);
                 }
                 jsavCode.highlight(r.data.highlightLine);
-                currentHighlightLine = r.data.highlightLine;
+                currentCodeHighlightLine = r.data.highlightLine;
             }
+
+            if (i > 0) {
+                jsavEvents.unhighlight(i);
+            }
+            jsavEvents.highlight(i + 1);
 
             switch (r.event) {
                 case 'executeBegin':
@@ -71,9 +95,9 @@
                     }
                     break;
                 case 'executeEnd':
-                    if (currentHighlightLine > 0) {
-                        jsavCode.unhighlight(currentHighlightLine);
-                        currentHighlightLine = -1;
+                    if (currentCodeHighlightLine > 0) {
+                        jsavCode.unhighlight(currentCodeHighlightLine);
+                        currentCodeHighlightLine = -1;
                     }
                     currentExecutionID = -1;
                     getNode(getExecuteNodeID(r.executeID)).removeClass('activeExecutionNode').addClass('completedExecutionNode');
@@ -95,7 +119,10 @@
                     // create "cause" node
                     addNode(g, getCauseNodeID(r.causeID)).addClass('causeNode');
                     // create "edge to current execution edge"
-                    addEdge(g, getExecuteNodeID(r.executeID), getCauseNodeID(r.causeID), { 'stroke-dasharray': ['- .'], 'arrow-end': 'block'/*, classic, block, open, oval, diamond, none,*/ });
+                    addEdge(g, getExecuteNodeID(r.executeID), getCauseNodeID(r.causeID), {
+                        'stroke-dasharray': ['- .'],
+                        'arrow-end': 'block' /*, classic, block, open, oval, diamond, none,*/
+                    });
                     // create "linked-by" edge
                     addEdge(g, getLinkNodeID(r.linkID), getCauseNodeID(r.causeID));
                     break;
