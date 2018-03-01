@@ -8,17 +8,24 @@
   <body>
     <h1>Async Context Visualization - simpleExpress</h1>
     <div class='container'>
-        <div id="codeContainer" class="codeContainer">
+      <div id="codeContainer" class="codeContainer">
+        <div id="codeContainerInner" class="innerCodeContainer">
+          <H3>Code</H3>
           <div id="codeAnchor"></div>
         </div>
-        <div id="graphContainer" class="graphContainer">
-          <div id="av">
-            <div class="jsavcontrols"></div>
-            <span class="jsavcounter"></span>
-            <p class="jsavoutput jsavline"></p>
-          </div>
+        <div id="eventContainerInner" class="innerCodeContainer">
+          <H3>Events</H3>
+          <div id="eventAnchor"></div>
         </div>
       </div>
+      <div id="graphContainer" class="graphContainer">
+        <div id="av">
+          <div class="jsavcontrols"></div>
+          <span class="jsavcounter"></span>
+          <p class="jsavoutput jsavline"></p>
+        </div>
+      </div>
+    </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
     <script src="../../JSAV/lib/jquery.transit.js"></script>
