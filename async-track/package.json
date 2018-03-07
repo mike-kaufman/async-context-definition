@@ -1,0 +1,18 @@
+{
+  "name": "async-track",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "clean": "rimraf ./out",
+    "build": "tsc"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^9.4.6",
+    "rimraf": "^2.6.2",
+    "typescript": "^2.7.2"
+  }
+}
