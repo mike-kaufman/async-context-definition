@@ -52,7 +52,6 @@ Given our model, this would produce the following event stream:
 {"event": "link", "executeID":0, "linkID": 1} // indicates f1() was "linked" in the call to "setTimeout()"
 {"event": "cause", "executeID":0, "linkID": 1, "causeID": 2} 
 {"event": "link", "executeID":0, "linkID": 3} // indicates f2() was "linked" in the call to "then()"
-{"event": "cause", "executeID":0, "linkID": 1, "causeID": 2} 
 {"event": "executeEnd", "executeID": 0 } // main program body is ending
 
 {"event": "executeBegin", "executeID": 4, "causeID":2 } // callback f1() is now starting
