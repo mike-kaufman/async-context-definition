@@ -53,6 +53,7 @@ export function link(cb: IFunction): IContinuation {
  * raise the cause event
  */
 export function cause(c: IContinuation) {
-    raiseCauseEvent(c.linkId);
+    const e: ICauseEvent = raiseCauseEvent(c.linkId);
+    c.causeId = e.causeId;
 }
 
