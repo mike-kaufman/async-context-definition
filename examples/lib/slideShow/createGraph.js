@@ -53,7 +53,7 @@
 
     // set up event display
     const recordsString = records.reduce((accumlator, curr) => {
-        const obj = { ...curr };
+        const obj = Object.assign({}, curr);
         if (obj.data) {
             delete obj.data;
         }
