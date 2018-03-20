@@ -41,9 +41,6 @@ export interface IAsyncTrack {
     getCurrentId(): number;
     getCurrentContext(): IAsyncState;
     getCurrentNamePath(): string[];
-    /* tslint:disable:no-any */
-    runInContext(callback: () => any, state: IAsyncState);
-    /* tslint:enable:no-any */
 }
 
 export function getAsyncTrack() {
@@ -130,20 +127,20 @@ class AsyncTrack implements IAsyncTrack {
         }, 1000);
     }
 
-    private stamp(originalFunction, wrapperFunction, namePath: string[]) {
-        AsyncTrack.copyProps(originalFunction, wrapperFunction);
-        if (originalFunction.__asyncTrack_original__) {
-            const name = namePath.join('.');
-            this.raiseWarning(`originalFunction already has __asyncTrack_original__ for function ${name}`);
-        }
+    // private stamp(originalFunction, wrapperFunction, namePath: string[]) {
+    //     AsyncTrack.copyProps(originalFunction, wrapperFunction);
+    //     if (originalFunction.__asyncTrack_original__) {
+    //         const name = namePath.join('.');
+    //         this.raiseWarning(`originalFunction already has __asyncTrack_original__ for function ${name}`);
+    //     }
 
-        if (wrapperFunction.__asyncTrack_original__) {
-            const name = namePath.join('.');
-            this.raiseWarning(`wrapperFunction already has __asyncTrack_original__for function ${name}`);
-        }
+    //     if (wrapperFunction.__asyncTrack_original__) {
+    //         const name = namePath.join('.');
+    //         this.raiseWarning(`wrapperFunction already has __asyncTrack_original__for function ${name}`);
+    //     }
 
-        wrapperFunction.__asyncTrack_original__ = originalFunction;
-    }
+    //     wrapperFunction.__asyncTrack_original__ = originalFunction;
+    // }
 
     private asyncTrackInit() {
         const self = this;
@@ -443,37 +440,37 @@ class AsyncTrack implements IAsyncTrack {
         return wrappedCb;
     }
 
-    private raiseBeforeInvocation(id) {
-        for (let i = 0; i < this.handlers.length; i++) {
-            if (this.handlers[i] && this.handlers[i].onBeforeInvocation) {
-                this.handlers[i].onBeforeInvocation(id);
-            }
-        }
-    }
+    // private raiseBeforeInvocation(id) {
+    //     for (let i = 0; i < this.handlers.length; i++) {
+    //         if (this.handlers[i] && this.handlers[i].onBeforeInvocation) {
+    //             this.handlers[i].onBeforeInvocation(id);
+    //         }
+    //     }
+    // }
 
-    private raiseAfterInvocation(id) {
-        for (let i = 0; i < this.handlers.length; i++) {
-            if (this.handlers[i] && this.handlers[i].onAfterInvocation) {
-                this.handlers[i].onAfterInvocation(id);
-            }
-        }
-    }
+    // private raiseAfterInvocation(id) {
+    //     for (let i = 0; i < this.handlers.length; i++) {
+    //         if (this.handlers[i] && this.handlers[i].onAfterInvocation) {
+    //             this.handlers[i].onAfterInvocation(id);
+    //         }
+    //     }
+    // }
 
-    private raiseAsyncTransition(parentId, id) {
-        let state = undefined;
-        for (let i = 0; i < this.handlers.length; i++) {
-            if (this.handlers[i] && this.handlers[i].onAsyncTransition) {
-                const result = this.handlers[i].onAsyncTransition(parentId, id);
-                if (result) {
-                    if (!state) {
-                        state = {};
-                    }
-                    AsyncTrack.copyProps(result, state);
-                }
-            }
-        }
-        return state;
-    }
+    // private raiseAsyncTransition(parentId, id) {
+    //     let state = undefined;
+    //     for (let i = 0; i < this.handlers.length; i++) {
+    //         if (this.handlers[i] && this.handlers[i].onAsyncTransition) {
+    //             const result = this.handlers[i].onAsyncTransition(parentId, id);
+    //             if (result) {
+    //                 if (!state) {
+    //                     state = {};
+    //                 }
+    //                 AsyncTrack.copyProps(result, state);
+    //             }
+    //         }
+    //     }
+    //     return state;
+    // }
 
     // TODO:  need to test this codepath.
     private wrapSetter(pkg, prop, namePath) {
@@ -617,36 +614,36 @@ class AsyncTrack implements IAsyncTrack {
         return wrapped;
     }
 
-    // helper function to copy properties from one object to another
-    private static copyProps(fromObj, toObj) {
-        if (!fromObj || !toObj) {
-            return;
-        }
+    // // helper function to copy properties from one object to another
+    // private static copyProps(fromObj, toObj) {
+    //     if (!fromObj || !toObj) {
+    //         return;
+    //     }
 
-        for (let prop in fromObj) {
-            if (fromObj.hasOwnProperty(prop) && !toObj.hasOwnProperty(prop)) {
-                toObj[prop] = fromObj[prop];
-            }
-        }
-    }
+    //     for (let prop in fromObj) {
+    //         if (fromObj.hasOwnProperty(prop) && !toObj.hasOwnProperty(prop)) {
+    //             toObj[prop] = fromObj[prop];
+    //         }
+    //     }
+    // }
 
-    private static mergeState(fromObj, toObj) {
-        if (!fromObj) {
-            return toObj;
-        }
+    // private static mergeState(fromObj, toObj) {
+    //     if (!fromObj) {
+    //         return toObj;
+    //     }
 
-        if (!toObj) {
-            return fromObj;
-        }
+    //     if (!toObj) {
+    //         return fromObj;
+    //     }
 
-        for (let prop in fromObj) {
-            if (fromObj.hasOwnProperty(prop) && !toObj.hasOwnProperty(prop)) {
-                toObj[prop] = fromObj[prop];
-            }
-        }
+    //     for (let prop in fromObj) {
+    //         if (fromObj.hasOwnProperty(prop) && !toObj.hasOwnProperty(prop)) {
+    //             toObj[prop] = fromObj[prop];
+    //         }
+    //     }
 
-        return toObj;
-    }
+    //     return toObj;
+    // }
 
     /**
      * wrap the callback function in the parameter list
