@@ -5,11 +5,14 @@ const proxiedModule = require('module');
 const instrumentConfig = require('./config/instrument-config');
 /*tslint:enable:no-var-requires */
 
-//import {raiseCauseEvent } from './async-context-events';
-import {IContinuation, link, cause} from './continuation';
+import { IContinuation, link, cause } from './continuation';
 
 const originalRequire = proxiedModule.prototype.require;
 const cbConfig = instrumentConfig.cbconfig;
+
+export interface IAsyncTrack {
+    addHandler(h: IAsyncTrackEvents);
+}
 
 // private instance
 let instance: IAsyncTrack;
@@ -27,26 +30,11 @@ export interface IAsyncTrackWrapperFunction {
 }
 
 export interface IAsyncTrackEvents {
-    onAsyncTransition(parentId, id): IAsyncState;
-    onBeforeInvocation(id);
-    onAfterInvocation(id);
     onError(msg: string);
     onWarning(msg: string);
 }
 
-export interface IAsyncState {
-
-}
-
-export interface IAsyncTrack {
-    // addHandler(h: IAsyncTrackEvents);
-    // removeHandler(h: IAsyncTrackEvents);
-    // getCurrentId(): number;
-    // getCurrentContext(): IAsyncState;
-    // getCurrentNamePath(): string[];
-}
-
-export function getAsyncTrack() {
+export function getAsyncTrack(): IAsyncTrack {
     if (!instance) {
         instance = new AsyncTrack();
     }
@@ -56,9 +44,6 @@ export function getAsyncTrack() {
 // non-exported implementation
 class AsyncTrack implements IAsyncTrack {
 
-    private asyncIdCounter = 0;
-    private currentAsyncId = 0;
-    private currentAsyncState: IAsyncState = undefined;
     private currentAsyncNamePath: string[] = undefined;
     private handlers: IAsyncTrackEvents[] = [];
 
@@ -71,38 +56,8 @@ class AsyncTrack implements IAsyncTrack {
         }
     }
 
-    // public addHandler(h: IAsyncTrackEvents) {
-    //     this.handlers.push(h);
-    // }
-
-    // public removeHandler(h: IAsyncTrackEvents) {
-    //     const index = this.handlers.indexOf(h);
-    //     this.handlers.splice(index, 1);
-    // }
-
-    // public getCurrentId() {
-    //     return this.currentAsyncId;
-    // }
-
-    // public getCurrentContext(): IAsyncState {
-    //     return this.currentAsyncState;
-    // }
-
-    // public getCurrentNamePath(): string[] {
-    //     return this.currentAsyncNamePath;
-    // }
-
-    /* tslint:disable:no-any */
-    public runInContext(callback: () => any, state: IAsyncState) {
-        /* tslint:enable:no-any */
-        const saveState = this.currentAsyncState;
-        try {
-            this.currentAsyncState = state;
-            return callback();
-        }
-        finally {
-            this.currentAsyncState = saveState;
-        }
+    public addHandler(h: IAsyncTrackEvents) {
+        this.handlers.push(h);
     }
 
     private raiseWarning(msg: string) {
@@ -130,20 +85,20 @@ class AsyncTrack implements IAsyncTrack {
         }, 1000);
     }
 
-    // private stamp(originalFunction, wrapperFunction, namePath: string[]) {
-    //     AsyncTrack.copyProps(originalFunction, wrapperFunction);
-    //     if (originalFunction.__asyncTrack_original__) {
-    //         const name = namePath.join('.');
-    //         this.raiseWarning(`originalFunction already has __asyncTrack_original__ for function ${name}`);
-    //     }
+    private stamp(originalFunction, wrapperFunction, namePath: string[]) {
+        Object.assign(wrapperFunction, originalFunction);
+        if (originalFunction.__asyncTrack_original__) {
+            const name = namePath.join('.');
+            this.raiseWarning(`originalFunction already has __asyncTrack_original__ for function ${name}`);
+        }
 
-    //     if (wrapperFunction.__asyncTrack_original__) {
-    //         const name = namePath.join('.');
-    //         this.raiseWarning(`wrapperFunction already has __asyncTrack_original__for function ${name}`);
-    //     }
+        if (wrapperFunction.__asyncTrack_original__) {
+            const name = namePath.join('.');
+            this.raiseWarning(`wrapperFunction already has __asyncTrack_original__for function ${name}`);
+        }
 
-    //     wrapperFunction.__asyncTrack_original__ = originalFunction;
-    // }
+        wrapperFunction.__asyncTrack_original__ = originalFunction;
+    }
 
     private asyncTrackInit() {
         const self = this;
@@ -172,10 +127,10 @@ class AsyncTrack implements IAsyncTrack {
             }
             else if (moduleName === 'bluebird') {
                 if (loadedModule.setScheduler && !loadedModule.setScheduler.__asyncTrack_original__ && typeof loadedModule.setScheduler === 'function') {
-                    const originalScheduler = loadedModule.setScheduler(function(fn) {
+                    const originalScheduler = loadedModule.setScheduler(function (fn) {
                         if (fn && typeof fn === 'function') {
                             const c: IContinuation = link(fn);
-                            
+
                             // TODO:  where do we raise cause event for bluebird????
                             cause(c);
 
@@ -187,10 +142,10 @@ class AsyncTrack implements IAsyncTrack {
             }
             else if (moduleName === 'redis') {
                 const oldSend = loadedModule.RedisClient.prototype.internal_send_command;
-                loadedModule.RedisClient.prototype.internal_send_command = function(command, ...rest) {
+                loadedModule.RedisClient.prototype.internal_send_command = function (command, ...rest) {
                     if (command && command.callback) {
                         let callback = command.callback;
-                        const c : IContinuation = link(callback);
+                        const c: IContinuation = link(callback);
                         cause(c);
                         command.callback = c;
                     }
@@ -202,7 +157,7 @@ class AsyncTrack implements IAsyncTrack {
         }
 
         proxiedModule.prototype.require = asyncTrackRequire;
-        AsyncTrack.copyProps(originalRequire, proxiedModule.prototype.require);
+        Object.assign(proxiedModule.prototype.require, originalRequire);
         this.stamp(originalRequire, proxiedModule.prototype.require, ['module', 'prototype', 'require']);
 
         // load/instrument common modules that we want to do up-front
@@ -250,7 +205,7 @@ class AsyncTrack implements IAsyncTrack {
                 const listeners = this.listeners(eventName);
                 if (listeners) {
                     for (let i = 0; i < listeners.length; i++) {
-                        const c: IContinuation=   listeners[i];
+                        const c: IContinuation = listeners[i];
                         if (c.isContinuation && c.originalFunction && c.originalFunction === listener) {
                             arguments[1] = listeners[i];
                             break;
@@ -263,10 +218,6 @@ class AsyncTrack implements IAsyncTrack {
         };
 
     }
-
-    // private getNextAsyncId() {
-    //     return ++this.asyncIdCounter;
-    // }
 
     /**
      * instrument the callback registration functions according
@@ -355,7 +306,7 @@ class AsyncTrack implements IAsyncTrack {
      * @returns the wrapped callback
      */
     //private wrapCallback(callback, instrumentCBConfig, asyncId, asyncState, namepath: string[]) :IContinuation {
-        private wrapCallback(callback, instrumentCBConfig) :IContinuation {
+    private wrapCallback(callback, raiseCause: boolean): IContinuation {
         // tslint:disable-next-line:no-null-keyword
         if (callback === undefined || callback === null) {
             // if undefined or null, then we should just skip any attempts at instrumentation
@@ -368,109 +319,13 @@ class AsyncTrack implements IAsyncTrack {
             this.raiseError(`callback ${callback} is not of type function.  Actual type is ${typeof callback}.`);
         }
 
-        // if (callback.__asyncTrack_original__ === callback) {
-        //     // treat this as fatal since we've already instrumented this function
-        //     this.fatalError('callback.__asyncTrack_original__ is === callback!');
-        // }
-
-        // if (callback.__asyncTrack_original__) {
-        //     // treat this as fatal since we're trying to instrument a function twice
-        //     this.fatalError('Instrumenting a function twice!');
-        // }
-
         const self = this;
         const c: IContinuation = link(callback);
-        cause(c);
+        if (raiseCause) {
+            cause(c);
+        }
         return c;
-
-        // TODO:  
-        //  1.  Clean up params to this function
-        //  2.  need to account for instrumentCbConfig param 
-        //     - this allows us to capture & link/cause any params passed to the callback
-        //     - not clear if necessary or if a workaround
-
-
-        // /**
-        //  * The wrapped callback keeps track of all kinds of information including
-        //  * the callback registration and invocation's stack, time, event id etc.
-        //  * @returns the return value of the original callback function
-        //  */
-        // const wrappedCb = function wrappedCallback() {
-
-        //     // TODO!!!  need to lift this out??? 
-
-        //     // need test cases to cover this block
-        //     if (instrumentCBConfig) {
-        //         // instrument the parameter of the callback
-        //         // based on the configuration
-        //         for (const paramIdx in instrumentCBConfig) {
-        //             if (instrumentCBConfig.hasOwnProperty(paramIdx)) {
-        //                 const paramIdxInt = parseInt(paramIdx, 10);
-        //                 if (arguments[paramIdxInt]) {
-        //                     self.instrument(arguments[paramIdxInt], instrumentCBConfig[paramIdx], []);
-        //                 }
-        //             }
-        //         }
-        //     }
-
-        //     const saveAsyncState = self.currentAsyncState;
-        //     const saveAsyncId = self.currentAsyncId;
-        //     const saveAsyncNamePath = self.currentAsyncNamePath;
-
-        //     if (saveAsyncId !== 0) {
-        //         //console.log('non-zero parent of async ID.  need to investigate this.')
-        //     }
-
-        //     try {
-        //         self.currentAsyncState = AsyncTrack.mergeState(self.currentAsyncState, asyncState);
-        //         self.currentAsyncId = asyncId;
-        //         self.currentAsyncNamePath = namepath;
-        //         self.raiseBeforeInvocation(asyncId);
-        //         return callback.apply(this, arguments);
-        //     } finally {
-        //         self.raiseAfterInvocation(asyncId);
-        //         self.currentAsyncId = 0;
-        //         self.currentAsyncState = saveAsyncState;
-        //         self.currentAsyncId = saveAsyncId;
-        //         self.currentAsyncNamePath = saveAsyncNamePath;
-        //     }
-        // };
-
-        // self.stamp(callback, wrappedCb, namepath);
-        // return wrappedCb;
     }
-
-    // private raiseBeforeInvocation(id) {
-    //     for (let i = 0; i < this.handlers.length; i++) {
-    //         if (this.handlers[i] && this.handlers[i].onBeforeInvocation) {
-    //             this.handlers[i].onBeforeInvocation(id);
-    //         }
-    //     }
-    // }
-
-    // private raiseAfterInvocation(id) {
-    //     for (let i = 0; i < this.handlers.length; i++) {
-    //         if (this.handlers[i] && this.handlers[i].onAfterInvocation) {
-    //             this.handlers[i].onAfterInvocation(id);
-    //         }
-    //     }
-    // }
-
-    // private raiseAsyncTransition(parentId, id) {
-    //     let state = undefined;
-    //     for (let i = 0; i < this.handlers.length; i++) {
-    //         if (this.handlers[i] && this.handlers[i].onAsyncTransition) {
-    //             const result = this.handlers[i].onAsyncTransition(parentId, id);
-    //             if (result) {
-    //                 if (!state) {
-    //                     state = {};
-    //                 }
-    //                 AsyncTrack.copyProps(result, state);
-    //             }
-    //         }
-    //     }
-    //     return state;
-    // }
 
     // TODO:  need to test this codepath.
     private wrapSetter(pkg, prop, namePath) {
@@ -478,6 +333,7 @@ class AsyncTrack implements IAsyncTrack {
 
         if (typeof pkg[prop] === 'function') {
             const c: IContinuation = link(pkg[prop]);
+            cause(c);
             pkg[prop] = c;
         }
 
@@ -487,7 +343,7 @@ class AsyncTrack implements IAsyncTrack {
             set: function setOverride(func) {
                 if (typeof func === 'function') {
                     // TODO:  is this correct???
-                    this['__asyncTrack_wrapped_' + prop + '__'] = self.wrapCallback(func, undefined);
+                    this['__asyncTrack_wrapped_' + prop + '__'] = self.wrapCallback(func, true);
                 }
                 else {
                     this['__asyncTrack_wrapped_' + prop + '__'] = func;
@@ -530,11 +386,9 @@ class AsyncTrack implements IAsyncTrack {
             // instrument function whose has a callback and its return
             // value also contains functions that can have callback
             wrapper = function wrapperCallbackInParameterListAndReturn() {
-                const asyncId = self.getNextAsyncId();
-                const asyncState = self.raiseAsyncTransition(self.currentAsyncId, asyncId);
 
                 self.wrapCallbackInParameterList(config[prop].callbackArgIdx,
-                    arguments, config[prop].__parameter__, asyncId, asyncState, namePath);
+                    arguments, true /* fireCauseAtLinkTime*/, namePath);
 
                 const ret = origFunc.apply(this, arguments);
 
@@ -566,9 +420,6 @@ class AsyncTrack implements IAsyncTrack {
                 /* tslint:enable:no-null-keyword */
                 const ctor = (Function.prototype.bind.apply(origFunc, args));
 
-                // TODO:  do we need to call raiseAsyncTransition() here?  don't think so, but should confirm...
-                // const asyncState = raiseAsyncTransition();
-
                 const ret = new ctor();
                 self.instrument(ret, config[prop].__returnVal__, namePath);
                 return ret;
@@ -585,7 +436,7 @@ class AsyncTrack implements IAsyncTrack {
             //     return ret;
             // }
         } else {
-            wrapper = this.wrapTransition(origFunc, config[prop].callbackArgIdx, config[prop].__parameter__, namePath);
+            wrapper = this.wrapTransition(origFunc, config[prop].callbackArgIdx, true /*fireCauseAtLinkTime*/, namePath);
         }
 
         if (wrapper) {
@@ -598,50 +449,19 @@ class AsyncTrack implements IAsyncTrack {
         return wrapper;
     }
 
-    private wrapTransition(originalFunction, callbackArgIndex, parameterConfig, namePath) {
+    private wrapTransition(originalFunction, callbackArgIndex, fireCauseAtLinkTime: boolean, namePath) {
         const self = this;
         const wrapped = function wrappedTransition() {
-            const asyncId = self.getNextAsyncId();
-            const asyncState = self.raiseAsyncTransition(self.currentAsyncId, asyncId);
+            // const asyncId = self.getNextAsyncId();
+            // const asyncState = self.raiseAsyncTransition(self.currentAsyncId, asyncId);
             self.wrapCallbackInParameterList(callbackArgIndex,
-                arguments, parameterConfig, asyncId, asyncState, namePath);
+                arguments, fireCauseAtLinkTime, namePath);
             const ret = originalFunction.apply(this, arguments);
             return ret;
         };
 
         return wrapped;
     }
-
-    // // helper function to copy properties from one object to another
-    // private static copyProps(fromObj, toObj) {
-    //     if (!fromObj || !toObj) {
-    //         return;
-    //     }
-
-    //     for (let prop in fromObj) {
-    //         if (fromObj.hasOwnProperty(prop) && !toObj.hasOwnProperty(prop)) {
-    //             toObj[prop] = fromObj[prop];
-    //         }
-    //     }
-    // }
-
-    // private static mergeState(fromObj, toObj) {
-    //     if (!fromObj) {
-    //         return toObj;
-    //     }
-
-    //     if (!toObj) {
-    //         return fromObj;
-    //     }
-
-    //     for (let prop in fromObj) {
-    //         if (fromObj.hasOwnProperty(prop) && !toObj.hasOwnProperty(prop)) {
-    //             toObj[prop] = fromObj[prop];
-    //         }
-    //     }
-
-    //     return toObj;
-    // }
 
     /**
      * wrap the callback function in the parameter list
@@ -655,13 +475,13 @@ class AsyncTrack implements IAsyncTrack {
      * @param {string} location the callback register's location
      * @param {Object} passInfo the object that will be passed from register to the callback
      */
-    private wrapCallbackInParameterList(startIdxList, args, paramConfig, asyncId, asyncState, namePath) {
+    private wrapCallbackInParameterList(startIdxList, args, fireCauseAtLinkTime: boolean, namePath) {
         let callbackParIdx;
         if (startIdxList.length === 1) {
             callbackParIdx = startIdxList[0];
             for (let i = 0; i < 4; i++) { // search backwards 4 times
                 if ((typeof (args[callbackParIdx])) === 'function') {
-                    this.wrapCallbackInParameter(callbackParIdx, args, paramConfig, asyncId, asyncState, namePath);
+                    this.wrapCallbackInParameter(callbackParIdx, args, fireCauseAtLinkTime, namePath);
                     break;
                 }
                 else {
@@ -672,19 +492,19 @@ class AsyncTrack implements IAsyncTrack {
         } else {
             for (callbackParIdx of startIdxList) {
                 if ((typeof (args[callbackParIdx])) === 'function') {
-                    this.wrapCallbackInParameter(callbackParIdx, args, paramConfig, asyncId, asyncState, namePath);
+                    this.wrapCallbackInParameter(callbackParIdx, args, fireCauseAtLinkTime, namePath);
                     break;
                 }
             }
         }
     }
 
-    private wrapCallbackInParameter(callbackParIdx, args, paramConfig, asyncId, asyncState, namePath) {
+    private wrapCallbackInParameter(callbackParIdx, args, fireCauseAtLinkTime: boolean, namePath) {
         let callback = args[callbackParIdx];
 
-        assert(typeof callback === 'function');
+        this.assert(typeof callback === 'function');
 
-        const wrappedCallback = this.wrapCallback(callback, paramConfig);
+        const wrappedCallback = this.wrapCallback(callback, fireCauseAtLinkTime);
         if (wrappedCallback) {
             args[callbackParIdx] = wrappedCallback;
         }
@@ -695,14 +515,16 @@ class AsyncTrack implements IAsyncTrack {
 
         const self = this;
         function wrapOnFullfilled(onFulfilled, onRejected) {
-            const asyncId = self.getNextAsyncId();
-            const asyncState = self.raiseAsyncTransition(self.currentAsyncId, asyncId);
 
             if (typeof onFulfilled === 'function') {
-                self.wrapCallbackInParameter(0, arguments, {}, asyncId, asyncState, thenNamePath);
+                // TODO:  need to figure out where to hook cause event for promises!!
+                const fireCauseAtLinkTime = true;
+                self.wrapCallbackInParameter(0, arguments, fireCauseAtLinkTime, thenNamePath);
             }
             if (typeof onRejected === 'function') {
-                self.wrapCallbackInParameter(1, arguments, {}, asyncId, asyncState, thenNamePath);
+                // TODO:  need to figure out where to hook cause event for promises!!
+                const fireCauseAtLinkTime = true;
+                self.wrapCallbackInParameter(1, arguments, fireCauseAtLinkTime, thenNamePath);
             }
 
             // other libraries may proxy promises, so we want to be sure that our proxies are always hooked up.
@@ -727,8 +549,8 @@ class AsyncTrack implements IAsyncTrack {
         const self = this;
 
         function wrapOnRejected(...args) {
-            const asyncId = self.getNextAsyncId();
-            const asyncState = self.raiseAsyncTransition(self.currentAsyncId, asyncId);
+            // const asyncId = self.getNextAsyncId();
+            // const asyncState = self.raiseAsyncTransition(self.currentAsyncId, asyncId);
 
             // bluebird API allows for "filtered catches", where the first n -1 arguments are constructors
             // or filter functions, and the last argument is the catch handler.  Account for that here.
@@ -738,7 +560,9 @@ class AsyncTrack implements IAsyncTrack {
             }
 
             if (typeof args[callbackIndex] === 'function') {
-                self.wrapCallbackInParameter(callbackIndex, arguments, {}, asyncId, asyncState, catchNamePath);
+                // TODO:  need to figure out where to hook cause event for promises!!
+                const fireCauseAtLinkTime = true;
+                self.wrapCallbackInParameter(callbackIndex, arguments, fireCauseAtLinkTime, catchNamePath);
             }
             const ret = originalCatch.apply(this, arguments);
 
@@ -770,6 +594,13 @@ class AsyncTrack implements IAsyncTrack {
         }
         if (!promiseCatch.__asyncTrack_original__) {
             promiseObj.prototype.catch = this.createOnRejectedWrapper(promiseCatch);
+        }
+    }
+
+    private assert(condition: boolean, msg?: string) {
+        msg = msg || 'Assertion Failed!';
+        if (!condition) {
+            this.fatalError(msg);
         }
     }
 }

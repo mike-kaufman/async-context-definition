@@ -20,6 +20,7 @@ export interface IContinuation extends IFunction {
     linkId: number;
 }
 
+
 /**
  * the "link" function that ensures the passed in callback is a continuation
  * 
@@ -34,8 +35,9 @@ export function link(cb: IFunction): IContinuation {
         const e: ILinkEvent = raiseLinkEvent();
         const p = function (...args: any[]) {
             try {
+                // investigate behavior here when cb is a bound function
                 raiseBeforeExecuteEvent((p as IContinuation).causeId);
-                return cb.apply(this, args);
+                return (p as IContinuation).originalFunction.apply(this, args);
             }
             finally {
                 raiseAfterExecuteEvent();

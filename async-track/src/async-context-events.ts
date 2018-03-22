@@ -3,28 +3,40 @@ export interface IAsyncEventListener {
     onAsyncEvent(IEvent);
 }
 
+export enum EventType {
+    ExecuteBegin,
+    ExecuteEnd,
+    Link,
+    Cause
+}
+
 export interface IEvent {
+    eventType: EventType,
     event: 'executeBegin' | 'executeEnd' | 'link' | 'cause';
 }
 
 export interface IExecuteBeginEvent extends IEvent {
+    eventType: EventType.ExecuteBegin,
     event: 'executeBegin';
     executeId: number;
     causeId?: number;  // causeId is missing only on root executeBegin events 
 }
 
 export interface IExecuteEndEvent extends IEvent {
+    eventType: EventType.ExecuteEnd;
     event: 'executeEnd';
     executeId: number;
 }
 
 export interface ILinkEvent extends IEvent {
+    eventType: EventType.Link;
     event: 'link';
     executeId: number;
     linkId: number;
 }
 
 export interface ICauseEvent extends IEvent {
+    eventType: EventType.Cause;
     event: 'cause';
     executeId: number;
     linkId: number;
@@ -33,6 +45,7 @@ export interface ICauseEvent extends IEvent {
 
 export function raiseBeforeExecuteEvent(causeId: number): IExecuteBeginEvent {
     const e: IExecuteBeginEvent = {
+        eventType: EventType.ExecuteBegin,
         event: 'executeBegin',
         executeId: getNextAsyncId(),
         causeId
@@ -46,6 +59,7 @@ export function raiseBeforeExecuteEvent(causeId: number): IExecuteBeginEvent {
 export function raiseAfterExecuteEvent(): IExecuteEndEvent {
     const executeId = executeContextStack.pop().executeId;
     const e: IExecuteEndEvent = {
+        eventType: EventType.ExecuteEnd,
         event: 'executeEnd',
         executeId
     };
@@ -55,6 +69,7 @@ export function raiseAfterExecuteEvent(): IExecuteEndEvent {
 
 export function raiseLinkEvent(): ILinkEvent {
     const e: ILinkEvent = {
+        eventType: EventType.Link,
         event: 'link',
         executeId: getCurrentExecuteId(),
         linkId: getNextAsyncId()
@@ -66,6 +81,7 @@ export function raiseLinkEvent(): ILinkEvent {
 export function raiseCauseEvent(linkId): ICauseEvent {
     const e: ICauseEvent = {
         event: 'cause',
+        eventType: EventType.Cause,
         executeId: getCurrentExecuteId(),
         linkId,
         causeId: getNextAsyncId()
