@@ -1,13 +1,47 @@
-var records = [{"eventType":0,"event":"executeBegin","executeId":1,"data":{"highlightLine":4}},{"eventType":2,"event":"link","executeId":1,"linkId":2,"data":{"highlightLine":6}},{"event":"cause","eventType":3,"executeId":1,"linkId":2,"causeId":3,"data":{"highlightLine":6}},{"eventType":2,"event":"link","executeId":1,"linkId":4,"data":{"highlightLine":6}},{"event":"cause","eventType":3,"executeId":1,"linkId":4,"causeId":5,"data":{"highlightLine":6}},{"eventType":2,"event":"link","executeId":1,"linkId":6,"data":{"highlightLine":8}},{"event":"cause","eventType":3,"executeId":1,"linkId":6,"causeId":7,"data":{"highlightLine":8}},{"eventType":1,"event":"executeEnd","executeId":1},{"eventType":0,"event":"executeBegin","executeId":8,"causeId":5,"data":{"highlightLine":144}},{"eventType":1,"event":"executeEnd","executeId":8},{"eventType":0,"event":"executeBegin","executeId":9,"causeId":7,"data":{"highlightLine":19}},{"eventType":2,"event":"link","executeId":9,"linkId":10,"data":{"highlightLine":10}},{"event":"cause","eventType":3,"executeId":9,"linkId":10,"causeId":11,"data":{"highlightLine":10}},{"eventType":2,"event":"link","executeId":9,"linkId":12,"data":{"highlightLine":10}},{"event":"cause","eventType":3,"executeId":9,"linkId":12,"causeId":13,"data":{"highlightLine":10}},{"eventType":2,"event":"link","executeId":9,"linkId":14,"data":{"highlightLine":12}},{"event":"cause","eventType":3,"executeId":9,"linkId":14,"causeId":15,"data":{"highlightLine":12}},{"eventType":2,"event":"link","executeId":9,"linkId":16,"data":{"highlightLine":16}},{"event":"cause","eventType":3,"executeId":9,"linkId":16,"causeId":17,"data":{"highlightLine":16}},{"eventType":1,"event":"executeEnd","executeId":9},{"eventType":0,"event":"executeBegin","executeId":18,"causeId":13,"data":{"highlightLine":144}},{"eventType":1,"event":"executeEnd","executeId":18},{"eventType":0,"event":"executeBegin","executeId":19,"causeId":15,"data":{"highlightLine":19}},{"eventType":2,"event":"link","executeId":19,"linkId":20,"data":{"highlightLine":13}},{"event":"cause","eventType":3,"executeId":19,"linkId":20,"causeId":21,"data":{"highlightLine":13}},{"eventType":2,"event":"link","executeId":19,"linkId":22,"data":{"highlightLine":13}},{"event":"cause","eventType":3,"executeId":19,"linkId":22,"causeId":23,"data":{"highlightLine":13}},{"eventType":1,"event":"executeEnd","executeId":19},{"eventType":0,"event":"executeBegin","executeId":24,"causeId":23,"data":{"highlightLine":144}},{"eventType":1,"event":"executeEnd","executeId":24},{"eventType":0,"event":"executeBegin","executeId":25,"causeId":17,"data":{"highlightLine":188}},{"eventType":2,"event":"link","executeId":25,"linkId":26,"data":{"highlightLine":17}},{"event":"cause","eventType":3,"executeId":25,"linkId":26,"causeId":27,"data":{"highlightLine":17}},{"eventType":2,"event":"link","executeId":25,"linkId":28,"data":{"highlightLine":17}},{"event":"cause","eventType":3,"executeId":25,"linkId":28,"causeId":29,"data":{"highlightLine":17}},{"eventType":1,"event":"executeEnd","executeId":25},{"eventType":0,"event":"executeBegin","executeId":30,"causeId":29,"data":{"highlightLine":144}},{"eventType":1,"event":"executeEnd","executeId":30},{"eventType":0,"event":"executeBegin","executeId":31,"causeId":7,"data":{"highlightLine":19}},{"eventType":2,"event":"link","executeId":31,"linkId":32,"data":{"highlightLine":10}},{"event":"cause","eventType":3,"executeId":31,"linkId":32,"causeId":33,"data":{"highlightLine":10}},{"eventType":2,"event":"link","executeId":31,"linkId":34,"data":{"highlightLine":10}},{"event":"cause","eventType":3,"executeId":31,"linkId":34,"causeId":35,"data":{"highlightLine":10}},{"eventType":2,"event":"link","executeId":31,"linkId":36,"data":{"highlightLine":12}},{"event":"cause","eventType":3,"executeId":31,"linkId":36,"causeId":37,"data":{"highlightLine":12}},{"eventType":2,"event":"link","executeId":31,"linkId":38,"data":{"highlightLine":16}},{"event":"cause","eventType":3,"executeId":31,"linkId":38,"causeId":39,"data":{"highlightLine":16}},{"eventType":2,"event":"link","executeId":31,"linkId":40,"data":{"highlightLine":20}},{"event":"cause","eventType":3,"executeId":31,"linkId":40,"causeId":41,"data":{"highlightLine":20}},{"eventType":2,"event":"link","executeId":31,"linkId":42,"data":{"highlightLine":20}},{"event":"cause","eventType":3,"executeId":31,"linkId":42,"causeId":43,"data":{"highlightLine":20}},{"eventType":1,"event":"executeEnd","executeId":31},{"eventType":0,"event":"executeBegin","executeId":44,"causeId":35,"data":{"highlightLine":144}},{"eventType":1,"event":"executeEnd","executeId":44},{"eventType":0,"event":"executeBegin","executeId":45,"causeId":43,"data":{"highlightLine":144}},{"eventType":1,"event":"executeEnd","executeId":45},{"eventType":0,"event":"executeBegin","executeId":46,"causeId":37,"data":{"highlightLine":19}},{"eventType":2,"event":"link","executeId":46,"linkId":47,"data":{"highlightLine":13}},{"event":"cause","eventType":3,"executeId":46,"linkId":47,"causeId":48,"data":{"highlightLine":13}},{"eventType":2,"event":"link","executeId":46,"linkId":49,"data":{"highlightLine":13}},{"event":"cause","eventType":3,"executeId":46,"linkId":49,"causeId":50,"data":{"highlightLine":13}},{"eventType":1,"event":"executeEnd","executeId":46},{"eventType":0,"event":"executeBegin","executeId":51,"causeId":50,"data":{"highlightLine":144}},{"eventType":1,"event":"executeEnd","executeId":51},{"eventType":0,"event":"executeBegin","executeId":52,"causeId":39,"data":{"highlightLine":188}},{"eventType":2,"event":"link","executeId":52,"linkId":53,"data":{"highlightLine":17}},{"event":"cause","eventType":3,"executeId":52,"linkId":53,"causeId":54,"data":{"highlightLine":17}},{"eventType":2,"event":"link","executeId":52,"linkId":55,"data":{"highlightLine":17}},{"event":"cause","eventType":3,"executeId":52,"linkId":55,"causeId":56,"data":{"highlightLine":17}},{"eventType":1,"event":"executeEnd","executeId":52},{"eventType":0,"event":"executeBegin","executeId":57,"causeId":56,"data":{"highlightLine":144}},{"eventType":1,"event":"executeEnd","executeId":57}];
+var records = [
+    {"event":"executeBegin","executeID":0, "data": {"highlightLine": 1}},
+    {"event":"output","data":{"output":"starting", "highlightLine": 1}},
+    {"event":"link","executeID":0,"linkID":1,"data":{"type":"setInterval", "highlightLine": 3}},    
+    {"event":"cause","executeID":0,"linkID":1,"causeID":2, "data": {"highlightLine": 3}},
+    {"event":"executeEnd","executeID":0},
 
-    var codeLines = `const xx = require( '../../../async-track/out/async-context-events');
-const x = require('../../../async-track/out/event-listener');
-x.init(__filename);
-xx.raiseBeforeExecuteEvent();
+    {"event":"executeBegin","executeID":4,"causeID":2, "data": {"highlightLine": 4}},
+    {"event":"output","data":{"output":"Stating iteration 1", "highlightLine": 5}},
+    {"event":"link","executeID":4,"linkID":5,"data":{"type":"setTimeout", "highlightLine": 7}},    
+    {"event":"cause","executeID":4,"linkID":5,"causeID":6, "data": {"highlightLine": 7}},
+    {"event":"link","executeID":4,"linkID":7,"data":{"type":"then()", "highlightLine": 11}},    
+    {"event":"executeEnd","executeID":4},
 
-console.log('starting');
+    {"event":"executeBegin","executeID":8,"causeID":6, "data": {"highlightLine": 7}},
+    {"event":"output","data":{"output":"resolving iteration 1", "highlightLine": 8}},
+    {"event":"cause","executeID":8,"linkID":7,"causeID":9, "data": {"highlightLine": 9}},
+    {"event":"executeEnd","executeID":8},
+
+    {"event":"executeBegin","executeID":10,"causeID":9, "data": {"highlightLine": 11}},
+    {"event":"output","data":{"output":"then'd iteration 1", "highlightLine": 12}},
+    {"event":"executeEnd","executeID":10},
+
+    {"event":"executeBegin","executeID":11,"causeID":2, "data": {"highlightLine": 4}},
+    {"event":"output","data":{"output":"Stating iteration 2", "highlightLine": 5}},
+    {"event":"link","executeID":11,"linkID":12,"data":{"type":"setTimeout", "highlightLine": 7}},    
+    {"event":"cause","executeID":11,"linkID":12,"causeID":13, "data": {"highlightLine": 7}},
+    {"event":"link","executeID":11,"linkID":14,"data":{"type":"then()", "highlightLine": 11}},
+    {"event":"output","data":{"output":"clearing interval", "highlightLine": 16}},
+    {"event":"executeEnd","executeID":11},
+
+    {"event":"executeBegin","executeID":15,"causeID":13, "data": {"highlightLine": 7}},
+    {"event":"output","data":{"output":"resolving iteration 2", "highlightLine": 8}},
+    {"event":"cause","executeID":15,"linkID":14,"causeID":16, "data": {"highlightLine": 9}},
+    {"event":"executeEnd","executeID":15},
+
+    {"event":"executeBegin","executeID":17,"causeID":16, "data": {"highlightLine": 11}},
+    {"event":"output","data":{"output":"then'd iteration 2", "highlightLine": 12}},
+    {"event":"executeEnd","executeID":17}
+];
+
+var codeLines = `console.log('starting');
 let counter = 0;
-const interval = setInterval(() => {
+const interval = setInterval(function f1() {
     const myIteration = ++counter;
     console.log(\`Staring iteration \${myIteration}\`);
     const p = new Promise((resolve, reject) => {
@@ -15,13 +49,11 @@ const interval = setInterval(() => {
             console.log(\`resolving interation \${myIteration}\`);
             resolve(true);
         }, 100);
-    }).then(() => {
+    }).then(()=>{
         console.log(\`then'd iteration \${myIteration}\`);
-    });
+    })
     if (counter === 2) {
         console.log(\`clearing interval\`);
         clearInterval(interval);
     }
-}, 1000);
-
-xx.raiseAfterExecuteEvent();`;
+}, 1000);`;

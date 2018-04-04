@@ -16,8 +16,8 @@ export interface IFunction {
 export interface IContinuation extends IFunction {
     isContinuation: boolean;
     originalFunction: (...args: any[]) => any;
-    causeId?: number;
-    linkId: number;
+    causeID?: number;
+    linkID: number;
 }
 
 
@@ -36,7 +36,7 @@ export function link(cb: IFunction): IContinuation {
         const p = function (...args: any[]) {
             try {
                 // investigate behavior here when cb is a bound function
-                raiseBeforeExecuteEvent((p as IContinuation).causeId);
+                raiseBeforeExecuteEvent((p as IContinuation).causeID);
                 return (p as IContinuation).originalFunction.apply(this, args);
             }
             finally {
@@ -46,7 +46,7 @@ export function link(cb: IFunction): IContinuation {
         c = p as IContinuation;
         c.isContinuation = true;
         c.originalFunction = cb;
-        c.linkId = e.linkId;
+        c.linkID = e.linkID;
     }
     return c;
 }
@@ -55,7 +55,7 @@ export function link(cb: IFunction): IContinuation {
  * raise the cause event
  */
 export function cause(c: IContinuation) {
-    const e: ICauseEvent = raiseCauseEvent(c.linkId);
-    c.causeId = e.causeId;
+    const e: ICauseEvent = raiseCauseEvent(c.linkID);
+    c.causeID = e.causeID;
 }
 

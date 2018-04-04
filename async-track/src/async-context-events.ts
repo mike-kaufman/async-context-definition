@@ -23,37 +23,37 @@ export interface IEvent {
 export interface IExecuteBeginEvent extends IEvent {
     eventType: EventType.ExecuteBegin,
     event: 'executeBegin';
-    executeId: number;
-    causeId?: number;  // causeId is missing only on root executeBegin events 
+    executeID: number;
+    causeID?: number;  // causeID is missing only on root executeBegin events 
 }
 
 export interface IExecuteEndEvent extends IEvent {
     eventType: EventType.ExecuteEnd;
     event: 'executeEnd';
-    executeId: number;
+    executeID: number;
 }
 
 export interface ILinkEvent extends IEvent {
     eventType: EventType.Link;
     event: 'link';
-    executeId: number;
-    linkId: number;
+    executeID: number;
+    linkID: number;
 }
 
 export interface ICauseEvent extends IEvent {
     eventType: EventType.Cause;
     event: 'cause';
-    executeId: number;
-    linkId: number;
-    causeId: number;
+    executeID: number;
+    linkID: number;
+    causeID: number;
 }
 
-export function raiseBeforeExecuteEvent(causeId: number): IExecuteBeginEvent {
+export function raiseBeforeExecuteEvent(causeID: number): IExecuteBeginEvent {
     const e: IExecuteBeginEvent = {
         eventType: EventType.ExecuteBegin,
         event: 'executeBegin',
-        executeId: getNextAsyncId(),
-        causeId
+        executeID: getNextAsyncId(),
+        causeID
     };
     raise(e);
     // todo: need to restore existing value here
@@ -62,11 +62,11 @@ export function raiseBeforeExecuteEvent(causeId: number): IExecuteBeginEvent {
 }
 
 export function raiseAfterExecuteEvent(): IExecuteEndEvent {
-    const executeId = executeContextStack.pop().executeId;
+    const executeID = executeContextStack.pop().executeID;
     const e: IExecuteEndEvent = {
         eventType: EventType.ExecuteEnd,
         event: 'executeEnd',
-        executeId
+        executeID
     };
     raise(e);
     return e;
@@ -76,20 +76,20 @@ export function raiseLinkEvent(): ILinkEvent {
     const e: ILinkEvent = {
         eventType: EventType.Link,
         event: 'link',
-        executeId: getCurrentExecuteId(),
-        linkId: getNextAsyncId()
+        executeID: getCurrentExecuteId(),
+        linkID: getNextAsyncId()
     };
     raise(e);
     return e;
 }
 
-export function raiseCauseEvent(linkId): ICauseEvent {
+export function raiseCauseEvent(linkID): ICauseEvent {
     const e: ICauseEvent = {
         event: 'cause',
         eventType: EventType.Cause,
-        executeId: getCurrentExecuteId(),
-        linkId,
-        causeId: getNextAsyncId()
+        executeID: getCurrentExecuteId(),
+        linkID,
+        causeID: getNextAsyncId()
     }
     raise(e);
     return e;
@@ -108,7 +108,7 @@ export function getCurrentExecuteId(): number {
         return 0;
     }
     else {
-        return executeContextStack[executeContextStack.length - 1].executeId;
+        return executeContextStack[executeContextStack.length - 1].executeID;
     }
 }
 
@@ -121,8 +121,8 @@ function raise(e: IEvent) {
         const frames = stackHelper.captureStack(raise, 30);
         const frame = stackHelper.tryGetFirstUserCodeFrame(frames);
         //stackHelper.mapFrames
-        const lineNumber = frame ? frame.lineNumber : 1;
-        e.data = {highlightLine: lineNumber};
+        const highlightLine = frame && frames[0] !== frame ? frame.lineNumber : 1;
+        e.data = {highlightLine, frame, frames};
     }
     for (let i = 0; i < listeners.length; i++) {
         listeners[i].onAsyncEvent(e);
