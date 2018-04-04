@@ -1,3 +1,8 @@
+const xx = require( '../../../async-track/out/async-context-events');
+const x = require('../../../async-track/out/event-listener');
+x.init(__filename);
+xx.raiseBeforeExecuteEvent();
+
 console.log('starting');
 let counter = 0;
 const interval = setInterval(() => {
@@ -17,3 +22,4 @@ const interval = setInterval(() => {
     }
 }, 1000);
 
+xx.raiseAfterExecuteEvent();

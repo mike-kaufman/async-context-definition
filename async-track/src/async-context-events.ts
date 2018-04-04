@@ -1,4 +1,8 @@
 
+import {IStackFrame, StackHelper} from './StackHelper';
+
+const stackHelper: StackHelper = new StackHelper();
+
 export interface IAsyncEventListener {
     onAsyncEvent(IEvent);
 }
@@ -13,6 +17,7 @@ export enum EventType {
 export interface IEvent {
     eventType: EventType,
     event: 'executeBegin' | 'executeEnd' | 'link' | 'cause';
+    data?: Object;
 }
 
 export interface IExecuteBeginEvent extends IEvent {
@@ -99,7 +104,12 @@ export function getNextAsyncId(): number {
 }
 
 export function getCurrentExecuteId(): number {
-    return executeContextStack[executeContextStack.length - 1].executeId;
+    if (executeContextStack.length === 0) {
+        return 0;
+    }
+    else {
+        return executeContextStack[executeContextStack.length - 1].executeId;
+    }
 }
 
 const executeContextStack: IExecuteBeginEvent[] = [];
@@ -107,6 +117,13 @@ const listeners: IAsyncEventListener[] = [];
 let currentAsyncID = 0;
 
 function raise(e: IEvent) {
+    if (e.eventType !== EventType.ExecuteEnd) {
+        const frames = stackHelper.captureStack(raise, 30);
+        const frame = stackHelper.tryGetFirstUserCodeFrame(frames);
+        //stackHelper.mapFrames
+        const lineNumber = frame ? frame.lineNumber : 1;
+        e.data = {highlightLine: lineNumber};
+    }
     for (let i = 0; i < listeners.length; i++) {
         listeners[i].onAsyncEvent(e);
     }
