@@ -32,7 +32,7 @@ One of the key challenges with "asynchronous context" is the lack of agreed upon
 
 3.  `Continuation Point` - Functions that accept a `Continuation` as a parameter are called `Continuation Points`.  `Continuation Points` are determined by convention of the host.  Some examples include `setTimeout` and `Promise.then`.  Note that not all functions that take a function as a parameter are `Continuation Points` - the parameter must be invoked *asynchronously*.  i.e., functions passed as parameters and invoked in the current `Execution Frame` are not `Continuation Points`.  For example, `Array.prototyp.forEach` is *not* considered a `Continuation Point`.
 
-4.  `Link Point` - A `Link Point` is point in program execution where a `Continuation Point` is invoked.  This creates a logical "binding" between the current `Execution Frame` and the `Continuation` passed as a parmaeter.  We call this binding the `Linking Context`. 
+4.  `Link Point` - A `Link Point` is point in program execution where a `Continuation Point` is invoked.  This creates a logical "binding" between the current `Execution Frame` and the `Continuation` passed as a parameter.  We call this binding the `Linking Context`. 
 
 5.  `Ready Point` - A `Ready Point` is a point in program execution where a previously linked `Continuation` is made "ready" to execute.  This creates a logical "binding" between the Continuation and the current `Execution Frame`. This binding is called the `Ready Context` (sometimes called a `Causal Context`).  Generally, the `Ready Point` always occurs at or after the `Link Point`. Promises, however, are different. For promises, the `Ready Point` occurs when the previous promise in the promise chain is resolved.
 
