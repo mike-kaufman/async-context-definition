@@ -26,15 +26,15 @@ execution, "what was the path of asynchronous functions that got me here"?
 ## Terminology
 One of the key challenges with "asynchronous context" is the lack of agreed upon terminology and semantics.  Let's define some:
 
-1.  `Execution Frame` - An `Execution Frame` is a period of program execution, defined precisely as the period of time that a special function, called a `Continuation`, is executing.  Not all function are `Continuations` (more on that below). At a lower level of abstraction, you can think of an `Execution Frame` as the period of time from when specific call frame is pushed on the stack, until that call frame is unwound off of the stack.   
+1.  `Execution Frame` - An `Execution Frame` is a period of program execution, defined precisely as the period of time that a special function, called a `Continuation`, is executing. At a lower level of abstraction, you can think of an `Execution Frame` as the period of time from when specific call frame is pushed on the stack, until that call frame is unwound off of the stack. Not all functions are `Continuations` (more on that below).   
 
-2.  `Continuation` - A `Continuation` is a JavaScript function created in one `Execution Frame` and passed to a host library to be invoked later.  Upon invocation, a `Continuation` creates a new unique `Execution Frame`.  For example, when we call `setTimeout(function c() {}, 1000)`, `setTimeout` is invoked in one `Execution Frame`, with the caller passing a `Continution` (namely `c`) as a parameter.  When `c` is invoked after the timeout period, a new `Continuation` is created, and when `c` completes, that continuation is completed. 
+2.  `Continuation` - A `Continuation` is a JavaScript function created in one `Execution Frame` and passed to a host library to be invoked later.  Upon invocation, a `Continuation` creates a new unique `Execution Frame`.  For example, when we call `setTimeout(function c() {}, 1000)`, `setTimeout` is invoked in one `Execution Frame`, with the caller passing a `Continution` (namely `c`) as a parameter.  When `c` is invoked after the timeout period, a new `Execution Frame` is created, and when `c` completes, that `Execution Frame` is completed. 
 
 3.  `Continuation Point` - Functions that accept a `Continuation` as a parameter are called `Continuation Points`.  `Continuation Points` are determined by convention of the host.  Some examples include `setTimeout` and `Promise.then`.  Note that not all functions that take a function as a parameter are `Continuation Points` - the parameter must be invoked *asynchronously*.  i.e., functions passed as parameters and invoked in the current `Execution Frame` are not `Continuation Points`.  For example, `Array.prototyp.forEach` is *not* considered a `Continuation Point`.
 
 4.  `Link Point` - A `Link Point` is point in program execution where a `Continuation Point` is invoked.  This creates a logical "binding" between the current `Execution Frame` and the `Continuation` passed as a parmaeter.  We call this binding the `Linking Context`. 
 
-5.  `Ready Point` - A `Ready Point` is a point in program execution where a previously linked `Continuation` is made "ready" to execute.  This creates a logical "binding" called the `Ready Context`, also sometimes called a `Causal Context`.  Generally, the `Ready Point` always occurs at or after the `Link Point`. Promises, however, are different. For promises, the `Ready Point` occurs when the previous promise in the promise chain is resolved.
+5.  `Ready Point` - A `Ready Point` is a point in program execution where a previously linked `Continuation` is made "ready" to execute.  This creates a logical "binding" between the Continuation and the current `Execution Frame`. This binding is called the `Ready Context` (sometimes called a `Causal Context`).  Generally, the `Ready Point` always occurs at or after the `Link Point`. Promises, however, are different. For promises, the `Ready Point` occurs when the previous promise in the promise chain is resolved.
 
 ## Events
 
@@ -80,8 +80,7 @@ Given our model, this would produce the following event stream:
 
 ## Events Produce the Async Call Graph
 The events above allow us to produce a Directed Acyclic Graph ([DAG](https://en.wikipedia.org/wiki/Directed_acyclic_graph))
-that we call the "Async Call Graph".  Specifically, the `executeBegin`, `ready` and `link` events correspond to node & edge
-creation in the graph.
+that we call the "Async Call Graph".  Specifically, the `executeBegin`, `link`, and `ready` events correspond to node & edge creation in the graph.
 
 ## Examples & Visualizations
 This all much easier to visualize.  We have a list of examples along with step-through visualizations:
