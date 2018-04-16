@@ -1,4 +1,4 @@
-# Node.js Async Context Definitions
+# The Continuation Moodel  - A Model for Asynchronous Execution in JavaScript
 
 This is an effort to formalize & visualize "asynchronous context" in Node.js applications.
 
@@ -14,21 +14,35 @@ and Javascript developers.
 ## Why do we care?
 
 Javascript is a single-threaded language, which simplifies many things.  To prevent blocking IO, 
-operations are pushed onto the background and associated with callback functions written in javascript.
+operations are pushed onto the background and associated with callback functions written in JavaScript.
 When IO operations complete, the callback is pushed onto a queue for execution by Node's "event loop". 
 This is explained in more detail [here](https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/). 
 
 While this model has many benefits, one of the key challenges is maintaing "context" when
 asynchronous callbacks are invoked.  The papers above describe "asynchronous context" in a much more 
 rigorous way, but for our purposes, we'll think of "asynchronous context" as the ability to answer, at any given point in program
-execution, "what was the path of asynchronous functions that got me here".
+execution, "what was the path of asynchronous functions that got me here"?
 
 ## Terminology
-During program execution, there are four different types of events that let us track async context:
-1.  `executeBegin` - indicates the begining of execution of an asynchronous function.
-2.  `link` - indicates a callback was queued for later asynchronous execution. 
-3.  `cause` - indicates a previously linked function was resolved. 
-4.  `executeEnd` - indicates the end of execution of an asynchronous function
+One of the key challenges with "asynchronous context" is the lack of agreed upon terminology and semantics.  Let's define some:
+
+1.  `Execution Frame` - An `Execution Frame` is a period of program execution, defined precisely as the period of time that a special function, called a `Continuation`, is executing.  Not all function are `Continuations` (more on that below). At a lower level of abstraction, you can think of an `Execution Frame` as the period of time from when specific call frame is pushed on the stack, until that call frame is unwound off of the stack.   
+
+2.  `Continuation` - A `Continuation` is a JavaScript function created in one `Execution Frame` and passed to a host library to be invoked later.  Upon invocation, a `Continuation` creates a new unique `Execution Frame`.  For example, when we call `setTimeout(function c() {}, 1000)`, `setTimeout` is invoked in one `Execution Frame`, with the caller passing a `Continution` (namely `c`) as a parameter.  When `c` is invoked after the timeout period, a new `Continuation` is created, and when `c` completes, that continuation is completed. 
+
+3.  `Continuation Point` - Functions that accept a `Continuation` as a parameter are called `Continuation Points`.  `Continuation Points` are determined by convention of the host.  Some examples include `setTimeout` and `Promise.then`.  Note that not all functions that take a function as a parameter are `Continuation Points` - the parameter must be invoked *asynchronously*.  i.e., functions passed as parameters and invoked in the current `Execution Frame` are not `Continuation Points`.  For example, `Array.prototyp.forEach` is *not* considered a `Continuation Point`.
+
+4.  `Link Point` - A `Link Point` is point in program execution where a `Continuation Point` is invoked.  This creates a logical "binding" between the current `Execution Frame` and the `Continuation` passed as a parmaeter.  We call this binding the `Linking Context`. 
+
+5.  `Ready Point` - A `Ready Point` is a point in program execution where a previously linked `Continuation` is made "ready" to execute.  This creates a logical "binding" called the `Ready Context`, also sometimes called a `Causal Context`.  Generally, the `Ready Point` always occurs at or after the `Link Point`. Promises, however, are different. For promises, the `Ready Point` occurs when the previous promise in the promise chain is resolved.
+
+## Events
+
+The above definitions map nicely to a set of four events generated at runtime. These events let us track "async context":
+1.  `executeBegin` - indicates the start of an `Execution Frame`. 
+2.  `link` - indicates a `Continuation Point` was called and `Continuation` was "pooled" for later execution. 
+3.  `ready` - indicates a `Ready Point` was reached. 
+4.  `executeEnd` - indicates the end of of an `Execution Frame`.
 
 For example, consider the code below:
 
@@ -42,7 +56,7 @@ Promise p = new Promise((reject, resolve) => {
 }).then(function f2() {
   console.log('in then');
 }
-```
+
 
 Given our model, this would produce the following event stream:
 
@@ -50,23 +64,23 @@ Given our model, this would produce the following event stream:
 {"event": "executeBegin", "executeID": 0 } // main program body is starting
 // starting
 {"event": "link", "executeID":0, "linkID": 1} // indicates f1() was "linked" in the call to "setTimeout()"
-{"event": "cause", "executeID":0, "linkID": 1, "causeID": 2} 
+{"event": "ready", "executeID":0, "linkID": 1, "readyID": 2} 
 {"event": "link", "executeID":0, "linkID": 3} // indicates f2() was "linked" in the call to "then()"
 {"event": "executeEnd", "executeID": 0 } // main program body is ending
 
-{"event": "executeBegin", "executeID": 4, "causeID":2 } // callback f1() is now starting
+{"event": "executeBegin", "executeID": 4, "readyID":2 } // callback f1() is now starting
 // resolving promise
-{"event": "cause", "executeID":4, "linkID": 3, "causeID": 5} // promise p is now resolved, allowing the "then(function f2()..." to proceed
+{"event": "ready", "executeID":4, "linkID": 3, "readyID": 5} // promise p is now resolved, allowing the "then(function f2()..." to proceed
 {"event": "executeEnd", "executeID": 4 } // callback f1() is ending
 
-{"event": "executeBegin", "executeID": 6, "causeID":5 } // callback f2() is now starting
+{"event": "executeBegin", "executeID": 6, "readyID":5 } // callback f2() is now starting
 // resolving promise
 {"event": "executeEnd", "executeID": 6 } // callback f1() is ending
 ```
 
 ## Events Produce the Async Call Graph
 The events above allow us to produce a Directed Acyclic Graph ([DAG](https://en.wikipedia.org/wiki/Directed_acyclic_graph))
-that we call the "Async Call Graph".  Specifically, the `executeBegin`, `cause` and `link` events correspond to node & edge
+that we call the "Async Call Graph".  Specifically, the `executeBegin`, `ready` and `link` events correspond to node & edge
 creation in the graph.
 
 ## Examples & Visualizations
